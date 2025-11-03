@@ -30,7 +30,7 @@ function GameResult() {
   const fetchGame = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/games/admin`, {
+      const response = await fetch(`http://localhost:5000/api/games/admin`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -57,7 +57,7 @@ function GameResult() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/results/publish', {
+      const response = await fetch('http://localhost:5000/api/results/publish', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -124,7 +124,9 @@ function GameResult() {
             <p className="text-gray-400 text-sm">
               {new Date(game.startTime).toLocaleString()} - {new Date(game.endTime).toLocaleString()}
             </p>
-            <span className={`inline-block mt-2 text-xs px-2 py-1 rounded ${game.gameType === 'prime' ? 'bg-blue-600' : 'bg-green-600'}`}>
+            <span className={`inline-block mt-2 text-xs px-2 py-1 rounded ${
+              game.gameType === 'prime' ? 'bg-blue-600' : 'bg-green-600'
+            }`}>
               {game.gameType.toUpperCase()}
             </span>
           </div>

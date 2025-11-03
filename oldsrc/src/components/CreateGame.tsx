@@ -4,20 +4,20 @@ import { useNavigate, useParams } from 'react-router-dom';
 function CreateGame() {
   const { gameId } = useParams<{ gameId: string }>();
   const isEditing = !!gameId;
-  const navigate = useNavigate();
-
   const [formData, setFormData] = useState({
     nickName: '',
+    date: new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD format
     startTime: '',
     endTime: '',
     gameType: 'prime',
-    isActive: true
+    isActive: true,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
-    if (isEditing) {
+    if (isEditing && gameId) {
       fetchGame();
     }
   }, [gameId, isEditing]);
@@ -25,7 +25,7 @@ function CreateGame() {
   const fetchGame = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/games/admin`, {
+      const response = await fetch(`http://localhost:5000/api/games/admin`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -41,12 +41,16 @@ function CreateGame() {
       const game = games.find((g: any) => g._id === gameId);
 
       if (game) {
+        const gameDate = new Date(game.startTime).toISOString().split('T')[0];
+        const startTime = new Date(game.startTime).toTimeString().slice(0, 5);
+        const endTime = new Date(game.endTime).toTimeString().slice(0, 5);
         setFormData({
           nickName: game.nickName,
-          startTime: new Date(game.startTime).toISOString().slice(0, 16),
-          endTime: new Date(game.endTime).toISOString().slice(0, 16),
+          date: gameDate,
+          startTime: startTime,
+          endTime: endTime,
           gameType: game.gameType,
-          isActive: game.isActive
+          isActive: game.isActive,
         });
       }
     } catch (err) {
@@ -61,7 +65,7 @@ function CreateGame() {
 
     try {
       const token = localStorage.getItem('token');
-      const url = isEditing ? `/api/games/${gameId}` : '/api/games';
+      const url = isEditing ? `http://localhost:5000/api/games/${gameId}` : 'http://localhost:5000/api/games';
       const method = isEditing ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
@@ -70,7 +74,11 @@ function CreateGame() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          startTime: new Date(`${formData.date}T${formData.startTime}`),
+          endTime: new Date(`${formData.date}T${formData.endTime}`),
+        }),
       });
 
       const data = await response.json();
@@ -78,7 +86,7 @@ function CreateGame() {
       if (response.ok) {
         navigate('/admin/dashboard');
       } else {
-        setError(data.error || 'Failed to save game');
+        setError(data.error || `Failed to ${isEditing ? 'update' : 'create'} game`);
       }
     } catch (err) {
       setError('Network error. Please try again.');
@@ -91,21 +99,21 @@ function CreateGame() {
     const { name, value, type } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
     }));
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-neutral-950 via-neutral-900 to-neutral-950 p-4">
+    <div className="min-h-screen bg-gradient-to-b from-neutral-950 via-neutral-900 to-neutral-950 text-white p-4">
       <div className="container mx-auto max-w-2xl">
         <div className="bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 rounded-xl p-8 border-2 border-yellow-600/40 shadow-xl">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center justify-between mb-6">
             <h1 className="text-3xl font-bold text-yellow-400">
               {isEditing ? 'Edit Game' : 'Create New Game'}
             </h1>
             <button
               onClick={() => navigate('/admin/dashboard')}
-              className="text-yellow-400 hover:text-yellow-300 text-sm underline"
+              className="text-yellow-400 hover:text-yellow-300 underline"
             >
               Back to Dashboard
             </button>
@@ -114,7 +122,7 @@ function CreateGame() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="nickName" className="block text-sm font-medium text-yellow-400 mb-2">
-                Game Name
+                Game Name *
               </label>
               <input
                 type="text"
@@ -128,13 +136,28 @@ function CreateGame() {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label htmlFor="date" className="block text-sm font-medium text-yellow-400 mb-2">
+                Date *
+              </label>
+              <input
+                type="date"
+                id="date"
+                name="date"
+                value={formData.date}
+                onChange={handleChange}
+                className="w-full px-4 py-3 bg-neutral-800 border border-yellow-600/30 rounded-lg text-white focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400"
+                required
+              />
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
               <div>
                 <label htmlFor="startTime" className="block text-sm font-medium text-yellow-400 mb-2">
-                  Start Time
+                  Start Time *
                 </label>
                 <input
-                  type="datetime-local"
+                  type="time"
                   id="startTime"
                   name="startTime"
                   value={formData.startTime}
@@ -146,10 +169,10 @@ function CreateGame() {
 
               <div>
                 <label htmlFor="endTime" className="block text-sm font-medium text-yellow-400 mb-2">
-                  End Time
+                  End Time *
                 </label>
                 <input
-                  type="datetime-local"
+                  type="time"
                   id="endTime"
                   name="endTime"
                   value={formData.endTime}
@@ -162,7 +185,7 @@ function CreateGame() {
 
             <div>
               <label htmlFor="gameType" className="block text-sm font-medium text-yellow-400 mb-2">
-                Game Type
+                Game Type *
               </label>
               <select
                 id="gameType"
@@ -199,9 +222,9 @@ function CreateGame() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white font-bold py-3 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-gradient-to-r from-yellow-600 to-amber-600 text-white font-bold py-3 rounded-lg hover:from-yellow-700 hover:to-amber-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? (isEditing ? 'Updating...' : 'Creating...') : (isEditing ? 'Update Game' : 'Create Game')}
+              {loading ? `${isEditing ? 'Updating' : 'Creating'} Game...` : `${isEditing ? 'Update' : 'Create'} Game`}
             </button>
           </form>
         </div>

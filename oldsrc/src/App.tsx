@@ -33,19 +33,25 @@ function HomePage() {
 
         // Process games to determine status based on current time
         const now = new Date();
-        const processedPrimeGames = (gamesData.prime || []).map((game: any) => {
-          const startTime = new Date(game.startTime);
-          const endTime = new Date(game.endTime);
-          let status = 'upcoming';
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const processedPrimeGames = (gamesData.prime || [])
+          .filter((game: any) => {
+            const gameDate = new Date(game.startTime);
+            return gameDate.toDateString() === today.toDateString();
+          })
+          .map((game: any) => {
+            const startTime = new Date(game.startTime);
+            const endTime = new Date(game.endTime);
+            let status = 'upcoming';
 
-          if (now >= startTime && now <= endTime) {
-            status = 'live';
-          } else if (now > endTime) {
-            status = 'ended';
-          }
+            if (now >= startTime && now <= endTime) {
+              status = 'live';
+            } else if (now > endTime) {
+              status = 'ended';
+            }
 
-          return { ...game, status };
-        });
+            return { ...game, status };
+          });
 
         const processedLocalGames = (gamesData.local || []).map((game: any) => {
           const startTime = new Date(game.startTime);
@@ -61,10 +67,7 @@ function HomePage() {
           return { ...game, status };
         });
 
-        // Sort games by start time for finding last, current, next
-        const sortedGames = processedPrimeGames.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-
-        setPrimeGames(sortedGames);
+        setPrimeGames(processedPrimeGames);
         setLocalGames(processedLocalGames);
         setResults(resultsData || []);
       } catch (err) {
@@ -122,135 +125,50 @@ function HomePage() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 mb-8">
-            {/* Last Completed Game */}
-            {(() => {
-              const endedGames = primeGames.filter(game => game.status === 'ended');
-              const lastCompletedGame = endedGames.length > 0 ? endedGames[endedGames.length - 1] : null;
-
-              if (lastCompletedGame) {
-                const gameResults = results.filter(r => r.name === lastCompletedGame.nickName);
-                const lastResult = gameResults.length > 0 ? gameResults[gameResults.length - 1] : null;
-
-                return (
-                  <div
-                    className="relative bg-gradient-to-br from-amber-950/50 via-neutral-900/80 to-amber-950/50 rounded-xl p-6 border-2 border-yellow-600/40 transition-all duration-300 hover:scale-105 hover:border-yellow-400 hover:shadow-2xl hover:shadow-yellow-600/20"
-                  >
-                    <div className="absolute -top-3 -right-3 bg-gray-600 text-white text-xs font-bold px-3 py-1 rounded-full border-2 border-white">
-                      COMPLETED
-                    </div>
-                    <h3 className="text-yellow-400 font-bold text-xl text-center mb-2">{lastCompletedGame.nickName}</h3>
-                    <p className="text-center text-gray-400 text-xs mb-4 flex items-center justify-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {new Date(lastCompletedGame.startTime).toLocaleTimeString('en-US', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: true
-                      })} - {new Date(lastCompletedGame.endTime).toLocaleTimeString('en-US', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: true
-                      })}
-                    </p>
-                    <div className="bg-gradient-to-br from-amber-800 to-amber-950 rounded-full w-28 h-28 mx-auto flex items-center justify-center border-4 border-yellow-600/50 shadow-xl mb-4">
-                      <span className="text-yellow-400 text-3xl font-bold">{lastResult ? lastResult.result : '?'}</span>
-                    </div>
-                    <button
-                      onClick={() => setSelectedGameForChart(lastCompletedGame.nickName)}
-                      className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white font-bold py-3 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300 hover:shadow-lg hover:shadow-red-600/50 transform hover:-translate-y-0.5"
-                    >
-                      View Chart
-                    </button>
+            {primeGames.map((game: any, index: number) => (
+              <div
+                key={index}
+                className="relative bg-gradient-to-br from-amber-950/50 via-neutral-900/80 to-amber-950/50 rounded-xl p-6 border-2 border-yellow-600/40 transition-all duration-300 hover:scale-105 hover:border-yellow-400 hover:shadow-2xl hover:shadow-yellow-600/20"
+              >
+                {game.status === 'live' && (
+                  <div className="absolute -top-3 -right-3 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse border-2 border-white">
+                    LIVE
                   </div>
-                );
-              }
-              return null;
-            })()}
-
-            {/* Current Live Game */}
-            {(() => {
-              const liveGame = primeGames.find(game => game.status === 'live');
-
-              if (liveGame) {
-                const now = new Date();
-                const endTime = new Date(liveGame.endTime);
-                const timeLeft = Math.max(0, Math.floor((endTime.getTime() - now.getTime()) / (1000 * 60))); // minutes left
-
-                return (
-                  <div
-                    className="relative bg-gradient-to-br from-amber-950/50 via-neutral-900/80 to-amber-950/50 rounded-xl p-6 border-2 border-yellow-600/40 transition-all duration-300 hover:scale-105 hover:border-yellow-400 hover:shadow-2xl hover:shadow-yellow-600/20"
-                  >
-                    <div className="absolute -top-3 -right-3 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse border-2 border-white">
-                      LIVE
-                    </div>
-                    <h3 className="text-yellow-400 font-bold text-xl text-center mb-2">{liveGame.nickName}</h3>
-                    <p className="text-center text-gray-400 text-xs mb-2 flex items-center justify-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {timeLeft} min left
-                    </p>
-                    <p className="text-center text-gray-400 text-xs mb-4">
-                      Ends: {new Date(liveGame.endTime).toLocaleTimeString('en-US', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: true
-                      })}
-                    </p>
-                    <div className="bg-gradient-to-br from-amber-800 to-amber-950 rounded-full w-28 h-28 mx-auto flex items-center justify-center border-4 border-yellow-600/50 shadow-xl mb-4">
-                      <span className="text-yellow-400 text-3xl font-bold">?</span>
-                    </div>
-                    <button
-                      onClick={() => setSelectedGameForChart(liveGame.nickName)}
-                      className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white font-bold py-3 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300 hover:shadow-lg hover:shadow-red-600/50 transform hover:-translate-y-0.5"
-                    >
-                      View Chart
-                    </button>
+                )}
+                {game.status === 'coming soon' && (
+                  <div className="absolute -top-3 -right-3 bg-yellow-600 text-white text-xs font-bold px-3 py-1 rounded-full border-2 border-white">
+                    SOON
                   </div>
-                );
-              }
-              return null;
-            })()}
-
-            {/* Next Upcoming Game */}
-            {(() => {
-              const upcomingGames = primeGames.filter(game => game.status === 'upcoming');
-              const nextUpcomingGame = upcomingGames.length > 0 ? upcomingGames[0] : null;
-
-              if (nextUpcomingGame) {
-                const now = new Date();
-                const startTime = new Date(nextUpcomingGame.startTime);
-                const timeUntilStart = Math.max(0, Math.floor((startTime.getTime() - now.getTime()) / (1000 * 60))); // minutes until start
-
-                return (
-                  <div
-                    className="relative bg-gradient-to-br from-amber-950/50 via-neutral-900/80 to-amber-950/50 rounded-xl p-6 border-2 border-yellow-600/40 transition-all duration-300 hover:scale-105 hover:border-yellow-400 hover:shadow-2xl hover:shadow-yellow-600/20"
-                  >
-                    <div className="absolute -top-3 -right-3 bg-yellow-600 text-white text-xs font-bold px-3 py-1 rounded-full border-2 border-white">
-                      UPCOMING
-                    </div>
-                    <h3 className="text-yellow-400 font-bold text-xl text-center mb-2">{nextUpcomingGame.nickName}</h3>
-                    <p className="text-center text-gray-400 text-xs mb-2 flex items-center justify-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      Starts in {timeUntilStart} min
-                    </p>
-                    <p className="text-center text-gray-400 text-xs mb-4">
-                      {new Date(nextUpcomingGame.startTime).toLocaleTimeString('en-US', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: true
-                      })}
-                    </p>
-                    <div className="bg-gradient-to-br from-amber-800 to-amber-950 rounded-full w-28 h-28 mx-auto flex items-center justify-center border-4 border-yellow-600/50 shadow-xl mb-4">
-                      <span className="text-yellow-400 text-3xl font-bold">?</span>
-                    </div>
-                    <button
-                      className="w-full bg-gradient-to-r from-yellow-600 to-yellow-700 text-white font-bold py-3 rounded-lg hover:from-yellow-700 hover:to-yellow-800 transition-all duration-300 hover:shadow-lg hover:shadow-yellow-600/50 transform hover:-translate-y-0.5"
-                    >
-                      Coming Soon
-                    </button>
+                )}
+                {game.status === 'ended' && (
+                  <div className="absolute -top-3 -right-3 bg-gray-600 text-white text-xs font-bold px-3 py-1 rounded-full border-2 border-white">
+                    ENDED
                   </div>
-                );
-              }
-              return null;
-            })()}
+                )}
+                <h3 className="text-yellow-400 font-bold text-xl text-center mb-2">{game.nickName}</h3>
+                <p className="text-center text-gray-400 text-xs mb-4 flex items-center justify-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  {new Date(game.startTime).toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                  })} - {new Date(game.endTime).toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                  })}
+                </p>
+                <div className="bg-gradient-to-br from-amber-800 to-amber-950 rounded-full w-28 h-28 mx-auto flex items-center justify-center border-4 border-yellow-600/50 shadow-xl mb-4">
+                  <span className="text-yellow-400 text-3xl font-bold">?</span>
+                </div>
+                <button
+                  onClick={() => setSelectedGameForChart(game.nickName)}
+                  className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white font-bold py-3 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300 hover:shadow-lg hover:shadow-red-600/50 transform hover:-translate-y-0.5"
+                >
+                  View Chart
+                </button>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -336,26 +254,14 @@ function HomePage() {
                             </button>
                           </div>
                         </>
-                      ) : game.status === 'live' ? (
-                        <div className="text-center">
-                          <div className="bg-gradient-to-r from-yellow-600 to-yellow-700 rounded-lg py-3 px-6 mb-3 shadow-md">
-                            <span className="text-white font-bold text-sm">Result Soon</span>
-                          </div>
-                          <button
-                            className="w-full bg-gradient-to-r from-gray-600 to-gray-700 text-white font-bold py-2 rounded-lg cursor-not-allowed opacity-50"
-                            disabled
-                          >
-                            View Chart
-                          </button>
-                        </div>
                       ) : (
                         <div className="text-center">
-                          <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg py-3 px-6 mb-3 shadow-md">
+                          <div className="bg-gradient-to-r from-yellow-600 to-yellow-700 rounded-lg py-3 px-6 mb-3 shadow-md">
                             <span className="text-white font-bold text-sm">Coming Soon</span>
                           </div>
                           <button
-                            className="w-full bg-gradient-to-r from-gray-600 to-gray-700 text-white font-bold py-2 rounded-lg cursor-not-allowed opacity-50"
-                            disabled
+                            onClick={() => setSelectedGameForChart(game.nickName)}
+                            className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white font-bold py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300 hover:shadow-lg hover:shadow-red-600/50 transform hover:-translate-y-0.5"
                           >
                             View Chart
                           </button>

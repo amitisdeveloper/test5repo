@@ -39,3 +39,4 @@ out/
 # OS and temporary files
 Thumbs.db
 *.tmp
+.vercel

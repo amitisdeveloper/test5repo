@@ -1,233 +1,248 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 
 interface Game {
   _id: string;
-  name: string;
-  description: string;
-  status: string;
-  createdBy: { username: string };
-  createdAt: string;
+  nickName: string;
+  startTime: string;
+  endTime: string;
+  gameType: string;
+  isActive: boolean;
+  latestResult?: {
+    result: string;
+    date: string;
+    time: string;
+  } | null;
 }
 
-interface Result {
-  _id: string;
-  game: { name: string };
-  numbers: number[];
-  date: string;
-  createdBy: { username: string };
-}
-
-const AdminDashboard: React.FC = () => {
+function AdminDashboard() {
   const [games, setGames] = useState<Game[]>([]);
-  const [results, setResults] = useState<Result[]>([]);
-  const [activeTab, setActiveTab] = useState('games');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [showEditTable, setShowEditTable] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      navigate('/admin/login');
-      return;
-    }
-
     fetchGames();
-    fetchResults();
-  }, [navigate]);
+  }, []);
 
   const fetchGames = async () => {
     try {
-      const response = await axios.get('/api/games', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/games/admin', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       });
-      setGames(response.data);
-    } catch (error) {
-      console.error('Error fetching games:', error);
-    }
-  };
 
-  const fetchResults = async () => {
-    try {
-      const response = await axios.get('/api/results', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      setResults(response.data);
-    } catch (error) {
-      console.error('Error fetching results:', error);
+      if (response.status === 401) {
+        localStorage.removeItem('token');
+        navigate('/admin/login');
+        return;
+      }
+
+      const data = await response.json();
+      setGames(data);
+    } catch (err) {
+      setError('Failed to fetch games');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
-    localStorage.removeItem('user');
     navigate('/admin/login');
   };
 
-  const toggleGameStatus = async (gameId: string, currentStatus: string) => {
-    try {
-      const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-      await axios.put(`/api/games/${gameId}`, { status: newStatus }, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      fetchGames();
-    } catch (error) {
-      console.error('Error updating game status:', error);
-    }
+  const handlePublishResult = (gameId: string) => {
+    navigate(`/admin/game-result/${gameId}`);
   };
 
-  const deleteGame = async (gameId: string) => {
-    if (window.confirm('Are you sure you want to delete this game?')) {
-      try {
-        await axios.delete(`/api/games/${gameId}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        });
-        fetchGames();
-      } catch (error) {
-        console.error('Error deleting game:', error);
-      }
-    }
+  const handleCreateGame = () => {
+    navigate('/admin/create-game');
   };
 
-  const deleteResult = async (resultId: string) => {
-    if (window.confirm('Are you sure you want to delete this result?')) {
-      try {
-        await axios.delete(`/api/results/${resultId}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        });
-        fetchResults();
-      } catch (error) {
-        console.error('Error deleting result:', error);
-      }
-    }
+  const handleEditGame = (gameId: string) => {
+    navigate(`/admin/edit-game/${gameId}`);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-neutral-950 via-neutral-900 to-neutral-950 flex items-center justify-center">
+        <div className="text-yellow-400">Loading...</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex">
-              <div className="flex-shrink-0 flex items-center">
-                <h1 className="text-xl font-bold text-gray-900">Admin Dashboard</h1>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => navigate('/admin/create-game')}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-              >
-                Create Game
-              </button>
-              <button
-                onClick={handleLogout}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-              >
-                Logout
-              </button>
-            </div>
+    <div className="min-h-screen bg-gradient-to-b from-neutral-950 via-neutral-900 to-neutral-950">
+      {/* Header */}
+      <header className="bg-gradient-to-r from-amber-950/80 to-neutral-900 border-b border-yellow-600/30 p-4">
+        <div className="container mx-auto flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-yellow-400">Admin Dashboard</h1>
+          <div className="flex gap-4">
+            <button
+              onClick={() => setShowEditTable(!showEditTable)}
+              className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all duration-300"
+            >
+              {showEditTable ? 'Hide Edit Table' : 'Show Edit Table'}
+            </button>
+            <button
+              onClick={handleCreateGame}
+              className="bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-2 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300"
+            >
+              Create Game
+            </button>
+            <button
+              onClick={handleLogout}
+              className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
+            >
+              Logout
+            </button>
           </div>
         </div>
-      </nav>
+      </header>
 
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
-              <button
-                onClick={() => setActiveTab('games')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'games'
-                    ? 'border-indigo-500 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Games
-              </button>
-              <button
-                onClick={() => setActiveTab('results')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'results'
-                    ? 'border-indigo-500 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Results
-              </button>
-            </nav>
+      {/* Main Content */}
+      <main className="container mx-auto p-6">
+        <h2 className="text-xl font-semibold text-yellow-400 mb-6">Games Management</h2>
+
+        {error && (
+          <div className="text-red-400 text-sm bg-red-900/20 border border-red-600/30 rounded-lg p-3 mb-6">
+            {error}
           </div>
+        )}
 
-          {activeTab === 'games' && (
-            <div className="mt-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Games</h3>
-              <div className="bg-white shadow overflow-hidden sm:rounded-md">
-                <ul className="divide-y divide-gray-200">
-                  {games.map((game) => (
-                    <li key={game._id} className="px-6 py-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="text-sm font-medium text-gray-900">{game.name}</h4>
-                          <p className="text-sm text-gray-500">{game.description}</p>
-                          <p className="text-xs text-gray-400">Created by: {game.createdBy.username}</p>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            game.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                            {game.status}
-                          </span>
-                          <button
-                            onClick={() => toggleGameStatus(game._id, game.status)}
-                            className="text-indigo-600 hover:text-indigo-900 text-sm"
-                          >
-                            Toggle
-                          </button>
-                          <button
-                            onClick={() => deleteGame(game._id)}
-                            className="text-red-600 hover:text-red-900 text-sm"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+        {/* Game Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {games.map(game => (
+            <div key={game._id} className="bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 rounded-lg p-6 border-2 border-yellow-600/40">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-yellow-400">{game.nickName}</h3>
+                  <p className="text-gray-400 text-sm">{game.gameType.toUpperCase()}</p>
+                </div>
+                <span className={`px-2 py-1 rounded text-xs font-medium ${
+                  game.isActive
+                    ? 'bg-green-900/50 text-green-400 border border-green-600/30'
+                    : 'bg-red-900/50 text-red-400 border border-red-600/30'
+                }`}>
+                  {game.isActive ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+
+              <div className="text-sm text-gray-300 mb-4">
+                <p>Start: {new Date(game.startTime).toLocaleTimeString('en-US', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: true
+                })}</p>
+                <p>End: {new Date(game.endTime).toLocaleTimeString('en-US', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: true
+                })}</p>
+                {game.latestResult && (
+                  <div className="mt-2 p-2 bg-green-900/20 border border-green-600/30 rounded">
+                    <p className="text-green-400 font-semibold">Latest Result: {game.latestResult.result}</p>
+                    <p className="text-gray-400 text-xs">
+                      {new Date(game.latestResult.date).toLocaleDateString()} {game.latestResult.time}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handlePublishResult(game._id)}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-2 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300 text-sm"
+                >
+                  Publish Result
+                </button>
+                <button
+                  onClick={() => handleEditGame(game._id)}
+                  className="flex-1 bg-gradient-to-r from-yellow-600 to-amber-600 text-white px-3 py-2 rounded-lg hover:from-yellow-700 hover:to-amber-700 transition-all duration-300 text-sm"
+                >
+                  Edit
+                </button>
               </div>
             </div>
-          )}
+          ))}
+        </div>
 
-          {activeTab === 'results' && (
-            <div className="mt-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Results</h3>
-              <div className="bg-white shadow overflow-hidden sm:rounded-md">
-                <ul className="divide-y divide-gray-200">
-                  {results.map((result) => (
-                    <li key={result._id} className="px-6 py-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="text-sm font-medium text-gray-900">{result.game.name}</h4>
-                          <p className="text-sm text-gray-500">Numbers: {result.numbers.join('-')}</p>
-                          <p className="text-xs text-gray-400">Created by: {result.createdBy.username}</p>
-                          <p className="text-xs text-gray-400">Date: {new Date(result.date).toLocaleDateString()}</p>
-                        </div>
+        {/* Edit Table */}
+        {showEditTable && (
+          <div className="bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 rounded-lg p-6 border-2 border-yellow-600/40">
+            <h3 className="text-lg font-bold text-yellow-400 mb-4">Edit Games Table</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-gray-300">
+                <thead>
+                  <tr className="border-b border-yellow-600/30">
+                    <th className="text-left py-2 px-4 text-yellow-400">Game Name</th>
+                    <th className="text-left py-2 px-4 text-yellow-400">Type</th>
+                    <th className="text-left py-2 px-4 text-yellow-400">Start Time</th>
+                    <th className="text-left py-2 px-4 text-yellow-400">End Time</th>
+                    <th className="text-left py-2 px-4 text-yellow-400">Latest Result</th>
+                    <th className="text-left py-2 px-4 text-yellow-400">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {games.map(game => (
+                    <tr key={game._id} className="border-b border-yellow-600/20 hover:bg-amber-950/20">
+                      <td className="py-3 px-4 font-semibold text-white">{game.nickName}</td>
+                      <td className="py-3 px-4 text-gray-400">{game.gameType.toUpperCase()}</td>
+                      <td className="py-3 px-4 text-gray-400">
+                        {new Date(game.startTime).toLocaleTimeString('en-US', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: true
+                        })}
+                      </td>
+                      <td className="py-3 px-4 text-gray-400">
+                        {new Date(game.endTime).toLocaleTimeString('en-US', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: true
+                        })}
+                      </td>
+                      <td className="py-3 px-4">
+                        {game.latestResult ? (
+                          <div>
+                            <span className="text-green-400 font-bold">{game.latestResult.result}</span>
+                            <br />
+                            <span className="text-gray-500 text-xs">
+                              {new Date(game.latestResult.date).toLocaleDateString()}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-500">No result</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">
                         <button
-                          onClick={() => deleteResult(result._id)}
-                          className="text-red-600 hover:text-red-900 text-sm"
+                          onClick={() => handleEditGame(game._id)}
+                          className="bg-gradient-to-r from-yellow-600 to-amber-600 text-white px-3 py-1 rounded text-xs hover:from-yellow-700 hover:to-amber-700 transition-all duration-300"
                         >
-                          Delete
+                          Edit
                         </button>
-                      </div>
-                    </li>
+                      </td>
+                    </tr>
                   ))}
-                </ul>
-              </div>
+                </tbody>
+              </table>
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+        )}
+
+        {games.length === 0 && (
+          <div className="text-center text-gray-400 mt-12">
+            <p>No games found. Create your first game!</p>
+          </div>
+        )}
+      </main>
     </div>
   );
-};
+}
 
 export default AdminDashboard;

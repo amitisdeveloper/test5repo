@@ -20,35 +20,11 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/games/admin - Get all games for admin (authenticated) with latest results
+// GET /api/games/admin - Get all games for admin (authenticated)
 router.get('/admin', auth, async (req, res) => {
   try {
-    const games = await Game.find().sort({ nickName: 1, createdAt: -1 });
-
-    // Get unique game names and their latest instances
-    const uniqueGames = [];
-    const seenNames = new Set();
-
-    for (const game of games) {
-      if (!seenNames.has(game.nickName)) {
-        seenNames.add(game.nickName);
-
-        // Get the latest result for this game
-        const Result = require('../models/Result');
-        const latestResult = await Result.findOne({ name: game.nickName }).sort({ createdAt: -1 });
-
-        uniqueGames.push({
-          ...game.toObject(),
-          latestResult: latestResult ? {
-            result: latestResult.result,
-            date: latestResult.createdAt,
-            time: latestResult.time
-          } : null
-        });
-      }
-    }
-
-    res.json(uniqueGames);
+    const games = await Game.find().sort({ createdAt: -1 });
+    res.json(games);
   } catch (error) {
     console.error('Error fetching games:', error);
     res.status(500).json({ error: 'Server error' });
