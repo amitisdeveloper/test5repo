@@ -1,98 +1,252 @@
 const express = require('express');
 const Result = require('../models/Result');
-const auth = require('../middleware/auth');
-
+const Game = require('../models/Game');
 const router = express.Router();
 
-// GET /api/results - Get all results
+// Middleware to verify JWT token
+const verifyToken = async (req, res, next) => {
+  const jwt = require('jsonwebtoken');
+  const token = req.header('Authorization')?.replace('Bearer ', '');
+  
+  if (!token) {
+    return res.status(401).json({ error: 'Access denied' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    req.user = decoded;
+    next();
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
+// Get all results
 router.get('/', async (req, res) => {
   try {
-    const results = await Result.find().sort({ createdAt: -1 });
-    res.json(results);
-  } catch (error) {
-    console.error('Error fetching results:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+    const { gameId, limit = 50, page = 1 } = req.query;
+    const query = {};
+    
+    if (gameId) {
+      query.gameId = gameId;
+    }
 
-// POST /api/results - Create a new result (authenticated)
-router.post('/', auth, async (req, res) => {
-  try {
-    const result = new Result(req.body);
-    await result.save();
-    res.status(201).json(result);
-  } catch (error) {
-    console.error('Error creating result:', error);
-    res.status(400).json({ error: 'Invalid data' });
-  }
-});
+    const results = await Result.find(query)
+      .populate('gameId', 'name gameType')
+      .populate('verifiedBy', 'username')
+      .sort({ drawDate: -1 })
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit));
 
-// PUT /api/results/:id - Update a result (authenticated)
-router.put('/:id', auth, async (req, res) => {
-  try {
-    const result = await Result.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true
+    const total = await Result.countDocuments(query);
+
+    res.json({
+      results,
+      pagination: {
+        current: parseInt(page),
+        pages: Math.ceil(total / parseInt(limit)),
+        total
+      }
     });
+  } catch (error) {
+    console.error('Get results error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get result by ID
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await Result.findById(id)
+      .populate('gameId', 'name gameType')
+      .populate('verifiedBy', 'username');
+    
     if (!result) {
       return res.status(404).json({ error: 'Result not found' });
     }
+
     res.json(result);
   } catch (error) {
-    console.error('Error updating result:', error);
-    res.status(400).json({ error: 'Invalid data' });
+    console.error('Get result error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// DELETE /api/results/:id - Delete a result (authenticated)
-router.delete('/:id', auth, async (req, res) => {
+// Create new result
+router.post('/', verifyToken, async (req, res) => {
   try {
-    const result = await Result.findByIdAndDelete(req.params.id);
-    if (!result) {
-      return res.status(404).json({ error: 'Result not found' });
-    }
-    res.json({ message: 'Result deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting result:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+    const { 
+      gameId, 
+      result, 
+      resultNumbers, 
+      winningNumbers, 
+      drawDate,
+      prizeDistribution,
+      totalPrizePool,
+      drawNumber 
+    } = req.body;
 
-// POST /api/results/publish - Publish result for a game (authenticated)
-router.post('/publish', auth, async (req, res) => {
-  try {
-    const { gameId, left, center, right } = req.body;
-
-    if (!gameId || !left || !center || !right) {
-      return res.status(400).json({ error: 'Game ID and all result numbers are required' });
+    if (!gameId || !result) {
+      return res.status(400).json({ error: 'Game ID and result are required' });
     }
 
-    // Find the game to get its name
-    const Game = require('../models/Game');
+    // Verify the game exists
     const game = await Game.findById(gameId);
     if (!game) {
       return res.status(404).json({ error: 'Game not found' });
     }
 
-    // Create result
-    const result = new Result({
-      name: game.nickName,
-      time: game.endTime.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      }),
-      left,
-      center,
-      right,
-      result: `${left}${center}${right}`
+    const newResult = new Result({
+      gameId,
+      result,
+      resultNumbers,
+      winningNumbers,
+      drawDate: drawDate || new Date(),
+      prizeDistribution,
+      totalPrizePool,
+      drawNumber,
+      isOfficial: req.user.role === 'admin',
+      verifiedBy: req.user.role === 'admin' ? req.user.userId : null,
+      verifiedAt: req.user.role === 'admin' ? new Date() : null
     });
 
-    await result.save();
-    res.status(201).json(result);
+    await newResult.save();
+    await newResult.populate([
+      { path: 'gameId', select: 'name gameType' },
+      { path: 'verifiedBy', select: 'username' }
+    ]);
+
+    res.status(201).json(newResult);
   } catch (error) {
-    console.error('Error publishing result:', error);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Create result error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update result
+router.put('/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { result, resultNumbers, winningNumbers, drawDate, prizeDistribution, totalPrizePool, isOfficial } = req.body;
+    
+    const resultDoc = await Result.findById(id);
+    
+    if (!resultDoc) {
+      return res.status(404).json({ error: 'Result not found' });
+    }
+
+    // Only admin can update results
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Only administrators can update results' });
+    }
+
+    // Update result fields
+    if (result !== undefined) resultDoc.result = result;
+    if (resultNumbers !== undefined) resultDoc.resultNumbers = resultNumbers;
+    if (winningNumbers !== undefined) resultDoc.winningNumbers = winningNumbers;
+    if (drawDate !== undefined) resultDoc.drawDate = drawDate;
+    if (prizeDistribution !== undefined) resultDoc.prizeDistribution = prizeDistribution;
+    if (totalPrizePool !== undefined) resultDoc.totalPrizePool = totalPrizePool;
+    
+    if (isOfficial !== undefined) {
+      resultDoc.isOfficial = isOfficial;
+      if (isOfficial && !resultDoc.verifiedBy) {
+        resultDoc.verifiedBy = req.user.userId;
+        resultDoc.verifiedAt = new Date();
+      }
+    }
+
+    await resultDoc.save();
+    await resultDoc.populate([
+      { path: 'gameId', select: 'name gameType' },
+      { path: 'verifiedBy', select: 'username' }
+    ]);
+
+    res.json(resultDoc);
+  } catch (error) {
+    console.error('Update result error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete result
+router.delete('/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await Result.findById(id);
+    
+    if (!result) {
+      return res.status(404).json({ error: 'Result not found' });
+    }
+
+    // Only admin can delete results
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Only administrators can delete results' });
+    }
+
+    await Result.findByIdAndDelete(id);
+    res.json({ message: 'Result deleted successfully' });
+  } catch (error) {
+    console.error('Delete result error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get latest results for a specific game
+router.get('/latest/:gameId', async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const { limit = 10 } = req.query;
+    
+    // Verify the game exists
+    const game = await Game.findById(gameId);
+    if (!game) {
+      return res.status(404).json({ error: 'Game not found' });
+    }
+    
+    const results = await Result.find({ gameId })
+      .populate('gameId', 'name gameType')
+      .sort({ drawDate: -1 })
+      .limit(parseInt(limit));
+    
+    res.json(results);
+  } catch (error) {
+    console.error('Get latest results error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Mark result as official
+router.patch('/:id/verify', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await Result.findById(id);
+    
+    if (!result) {
+      return res.status(404).json({ error: 'Result not found' });
+    }
+
+    // Only admin can verify results
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Only administrators can verify results' });
+    }
+
+    result.isOfficial = true;
+    result.verifiedBy = req.user.userId;
+    result.verifiedAt = new Date();
+    
+    await result.save();
+    await result.populate([
+      { path: 'gameId', select: 'name gameType' },
+      { path: 'verifiedBy', select: 'username' }
+    ]);
+
+    res.json(result);
+  } catch (error) {
+    console.error('Verify result error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

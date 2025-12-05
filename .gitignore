@@ -40,3 +40,6 @@ out/
 Thumbs.db
 *.tmp
 .vercel
+
+# Local Netlify folder
+.netlify

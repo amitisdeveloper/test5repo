@@ -1,10 +1,25 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-
 const router = express.Router();
 
-// POST /api/auth/login - Admin login
+// Middleware to verify JWT token
+const verifyToken = async (req, res, next) => {
+  const token = req.header('Authorization')?.replace('Bearer ', '');
+  
+  if (!token) {
+    return res.status(401).json({ error: 'Access denied' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    req.user = decoded;
+    next();
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -13,16 +28,26 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    const user = await User.findOne({ username });
+    // Find user by username or email
+    const user = await User.findOne({
+      $or: [{ username }, { email: username }]
+    });
+
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    if (!user.isActive) {
+      return res.status(401).json({ error: 'Account is deactivated' });
+    }
+
+    // Check password
     const isValidPassword = await user.comparePassword(password);
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // Generate JWT token
     const token = jwt.sign(
       { userId: user._id, username: user.username, role: user.role },
       process.env.JWT_SECRET || 'your-secret-key',
@@ -34,39 +59,95 @@ router.post('/login', async (req, res) => {
       user: {
         id: user._id,
         username: user.username,
+        email: user.email,
         role: user.role
       }
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// POST /api/auth/logout - Admin logout (client-side token removal)
-router.post('/logout', (req, res) => {
-  res.json({ message: 'Logged out successfully' });
-});
-
-// GET /api/auth/me - Get current user info
-router.get('/me', async (req, res) => {
+router.post('/register', async (req, res) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    const { username, password, email } = req.body;
 
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
+    if (!username || !password || !email) {
+      return res.status(400).json({ error: 'Username, password, and email are required' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    const user = await User.findById(decoded.userId).select('-password');
+    // Check if user already exists
+    const existingUser = await User.findOne({
+      $or: [{ username }, { email }]
+    });
 
+    if (existingUser) {
+      return res.status(400).json({ 
+        error: existingUser.username === username ? 'Username already exists' : 'Email already exists'
+      });
+    }
+
+    // Create new user
+    const newUser = new User({
+      username,
+      password,
+      email,
+      role: 'user'
+    });
+
+    await newUser.save();
+
+    res.status(201).json({ message: 'User created successfully' });
+  } catch (error) {
+    console.error('Registration error:', error);
+    if (error.code === 11000) {
+      res.status(400).json({ error: 'Username or email already exists' });
+    } else {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+});
+
+router.get('/profile', verifyToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).select('-password');
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ user });
+    res.json(user);
   } catch (error) {
-    res.status(401).json({ error: 'Invalid token' });
+    console.error('Profile error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create default admin user
+router.post('/create-admin', async (req, res) => {
+  try {
+    const { username, password, email } = req.body;
+
+    // Check if admin already exists
+    const existingAdmin = await User.findOne({ role: 'admin' });
+    if (existingAdmin) {
+      return res.status(400).json({ error: 'Admin user already exists' });
+    }
+
+    // Create admin user
+    const adminUser = new User({
+      username: username || 'admin',
+      password: password || 'admin123',
+      email: email || 'admin@example.com',
+      role: 'admin'
+    });
+
+    await adminUser.save();
+
+    res.status(201).json({ message: 'Admin user created successfully' });
+  } catch (error) {
+    console.error('Create admin error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

@@ -4,12 +4,15 @@
   "description": "555 Results Full-Stack App",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "nodemon server.js",
-    "dev:client": "vite",
+    "start": "netlify dev",
+    "dev": "vite dev",
+    "server": "node server.js",
+    "server:enhanced": "node server-enhanced.js",
+    "dev:full": "concurrently \"npm run server\" \"npm run dev\"",
+    "dev:enhanced": "concurrently \"npm run server:enhanced\" \"npm run dev\"",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:backend": "node test-backend.js"
   },
   "dependencies": {
     "axios": "^1.6.2",
@@ -24,7 +27,8 @@
     "react": "^18.2.0",
     "react-chartjs-2": "^5.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.20.1"
+    "react-router-dom": "^6.20.1",
+    "serverless-http": "^4.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.37",

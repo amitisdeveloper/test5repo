@@ -3,9 +3,12 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import AdminLogin from './components/AdminLogin';
 import AdminDashboard from './components/AdminDashboard';
+import AdminDashboardV2 from './components/AdminDashboardV2';
+import LatestUpdates from './components/LatestUpdates';
 import CreateGame from './components/CreateGame';
 import GameResult from './components/GameResult';
 import GameChart from './components/GameChart';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function HomePage() {
   const [primeGames, setPrimeGames] = useState<any[]>([]);
@@ -14,26 +17,35 @@ function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedGameForChart, setSelectedGameForChart] = useState<string | null>(null);
+  const [latestResult, setLatestResult] = useState<any>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [gamesResponse, resultsResponse] = await Promise.all([
+        const [gamesResponse, resultsResponse, latestResultResponse] = await Promise.all([
           fetch('/api/games'),
-          fetch('/api/results')
+          fetch('/api/results'),
+          fetch('/api/games/latest-result')
         ]);
 
-        if (!gamesResponse.ok || !resultsResponse.ok) {
+        if (!gamesResponse.ok || !resultsResponse.ok || !latestResultResponse.ok) {
           throw new Error('Failed to fetch data');
         }
 
         const gamesData = await gamesResponse.json();
         const resultsData = await resultsResponse.json();
+        const latestResultData = await latestResultResponse.json();
+
+        // Get today's date for filtering
+        const today = new Date();
+        const todayString = today.toDateString();
 
         // Process games to determine status based on current time
         const now = new Date();
-        const processedPrimeGames = (gamesData.prime || []).map((game: any) => {
+
+        // Filter and process prime games for today only
+        const allPrimeGames = (gamesData.prime || []).map((game: any) => {
           const startTime = new Date(game.startTime);
           const endTime = new Date(game.endTime);
           let status = 'upcoming';
@@ -47,7 +59,8 @@ function HomePage() {
           return { ...game, status };
         });
 
-        const processedLocalGames = (gamesData.local || []).map((game: any) => {
+        // Filter and process local games for today only
+        const allLocalGames = (gamesData.local || []).map((game: any) => {
           const startTime = new Date(game.startTime);
           const endTime = new Date(game.endTime);
           let status = 'upcoming';
@@ -59,14 +72,34 @@ function HomePage() {
           }
 
           return { ...game, status };
+        });
+
+        // Filter games to only show today's games
+        const todaysPrimeGames = allPrimeGames.filter((game: any) => {
+          const gameDate = new Date(game.startTime).toDateString();
+          return gameDate === todayString;
+        });
+
+        const todaysLocalGames = allLocalGames.filter((game: any) => {
+          const gameDate = new Date(game.startTime).toDateString();
+          return gameDate === todayString;
+        });
+
+        // Filter results to only show today's results
+        const todaysResults = (resultsData || []).filter((result: any) => {
+          const resultDate = new Date(result.createdAt).toDateString();
+          return resultDate === todayString;
         });
 
         // Sort games by start time for finding last, current, next
-        const sortedGames = processedPrimeGames.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+        const sortedGames = todaysPrimeGames.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
         setPrimeGames(sortedGames);
-        setLocalGames(processedLocalGames);
-        setResults(resultsData || []);
+        setLocalGames(todaysLocalGames);
+        setResults(todaysResults);
+
+        // Set the latest result from the API
+        setLatestResult(latestResultData);
       } catch (err) {
         console.error('Error fetching data:', err);
         setError('Failed to load data. Please try again later.');
@@ -80,13 +113,6 @@ function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-neutral-950 via-neutral-900 to-neutral-950 text-white">
-      {/* News Ticker */}
-      <div className="bg-gradient-to-r from-yellow-600 via-amber-500 to-yellow-600 py-3 overflow-hidden border-y-2 border-yellow-400/50">
-        <div className="marquee whitespace-nowrap text-neutral-900 font-bold text-sm">
-          ⭐ Welcome to 555 Results Live Results ⭐ Get Latest Updates Here ⭐ 24/7 Support Available ⭐ 100% Accurate Results ⭐ Fast & Secure ⭐ Call Now for Booking ⭐
-        </div>
-      </div>
-
       {/* Header */}
       <header className="relative py-8 px-4">
         <div className="absolute inset-0 bg-gradient-to-b from-amber-900/20 to-transparent"></div>
@@ -107,6 +133,14 @@ function HomePage() {
         </div>
       </header>
 
+      {/* Latest Updates Section */}
+      <div className="mt-8">
+        <LatestUpdates
+          latestResult={latestResult}
+          isLoading={loading}
+        />
+      </div>
+
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6 space-y-8">
 
@@ -122,14 +156,14 @@ function HomePage() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 mb-8">
-            {/* Last Completed Game */}
+            {/* Last Completed Game Today */}
             {(() => {
               const endedGames = primeGames.filter(game => game.status === 'ended');
               const lastCompletedGame = endedGames.length > 0 ? endedGames[endedGames.length - 1] : null;
 
               if (lastCompletedGame) {
                 const gameResults = results.filter(r => r.name === lastCompletedGame.nickName);
-                const lastResult = gameResults.length > 0 ? gameResults[gameResults.length - 1] : null;
+                const lastResult = gameResults.length > 0 ? gameResults[0] : null;
 
                 return (
                   <div
@@ -262,14 +296,14 @@ function HomePage() {
 
 
 
-            {/* Upcoming Games */}
+            {/* Upcoming Games - Today's games that haven't started yet */}
             <div className="bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 rounded-xl p-6 border-2 border-yellow-600/40 shadow-xl">
               <h3 className="text-yellow-400 text-lg font-bold mb-4 flex items-center gap-2">
                 <Clock className="w-5 h-5" />
-                Upcoming Games
+                Today's Upcoming Games
               </h3>
               <div className="space-y-3">
-                {localGames.map((game: any, index: number) => (
+                {localGames.filter((game: any) => game.status === 'upcoming').map((game: any, index: number) => (
                   <div key={index} className="bg-neutral-900/50 rounded-lg p-3 border border-yellow-600/20 hover:border-yellow-500/50 transition-colors">
                     <h4 className="text-white font-semibold text-sm">{game.nickName}</h4>
                     <p className="text-gray-400 text-xs flex items-center gap-1">
@@ -286,84 +320,91 @@ function HomePage() {
                     </p>
                   </div>
                 ))}
+                {localGames.filter((game: any) => game.status === 'upcoming').length === 0 && (
+                  <div className="text-center text-gray-400 py-4">
+                    <p className="text-sm">No upcoming games for today</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Right Column - Results */}
+          {/* Right Column - Today's Results */}
           <div className="lg:col-span-2">
             <div className="bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 rounded-xl p-6 border-2 border-yellow-600/40 shadow-xl">
               <div className="text-center mb-6">
-                <h2 className="text-3xl font-bold text-yellow-400 mb-2">Live Results Board</h2>
+                <h2 className="text-3xl font-bold text-yellow-400 mb-2">Today's Results Board</h2>
                 <div className="inline-block bg-red-600 text-white text-xs font-bold px-4 py-1 rounded-full">
-                  ● UPDATED LIVE ●
+                  ● PUBLISHED RESULTS ●
                 </div>
               </div>
 
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[...primeGames, ...localGames].map((game, index) => {
-                  // Find today's result for this game
-                  const today = new Date().toDateString();
-                  const gameResults = results.filter(r => r.name === game.nickName && new Date(r.createdAt).toDateString() === today);
-                  const todayResult = gameResults.length > 0 ? gameResults[0] : null;
+                {[...primeGames, ...localGames]
+                  .filter(game => {
+                    // Only show games that have results published today
+                    const gameResults = results.filter(r => r.name === game.nickName);
+                    return gameResults.length > 0;
+                  })
+                  .map((game, index) => {
+                    // Find today's result for this game
+                    const gameResults = results.filter(r => r.name === game.nickName);
+                    const latestResult = gameResults.length > 0 ? gameResults[0] : null;
 
-                  return (
-                    <div
-                      key={index}
-                      className="bg-gradient-to-br from-neutral-950/80 to-amber-950/40 rounded-lg p-4 border border-yellow-600/30 transition-all duration-300 hover:scale-105 hover:border-yellow-400 hover:shadow-lg hover:shadow-yellow-600/10"
-                    >
-                      <h4 className="text-yellow-400 font-bold text-center mb-1 text-sm">
-                        {game.nickName}
-                      </h4>
-                      {todayResult ? (
-                        <>
-                          <p className="text-center text-gray-500 text-xs mb-3">
-                            {new Date(todayResult.createdAt).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric'
-                            })} {todayResult.time}
-                          </p>
+                    return (
+                      <div
+                        key={index}
+                        className="bg-gradient-to-br from-neutral-950/80 to-amber-950/40 rounded-lg p-4 border border-yellow-600/30 transition-all duration-300 hover:scale-105 hover:border-yellow-400 hover:shadow-lg hover:shadow-yellow-600/10"
+                      >
+                        <h4 className="text-yellow-400 font-bold text-center mb-1 text-sm">
+                          {game.nickName}
+                        </h4>
+                        {latestResult ? (
+                          <>
+                            <p className="text-center text-gray-500 text-xs mb-3">
+                              {new Date(latestResult.createdAt).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })} {latestResult.time}
+                            </p>
+                            <div className="text-center">
+                              <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-lg py-3 px-6 mb-3 shadow-md">
+                                <span className="text-white font-bold text-xl">{latestResult.result}</span>
+                              </div>
+                              <button
+                                onClick={() => setSelectedGameForChart(game.nickName)}
+                                className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white font-bold py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300 hover:shadow-lg hover:shadow-red-600/50 transform hover:-translate-y-0.5"
+                              >
+                                View Chart
+                              </button>
+                            </div>
+                          </>
+                        ) : (
                           <div className="text-center">
-                            <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-lg py-3 px-6 mb-3 shadow-md">
-                              <span className="text-white font-bold text-xl">{todayResult.result}</span>
+                            <div className="bg-gradient-to-r from-gray-600 to-gray-700 rounded-lg py-3 px-6 mb-3 shadow-md">
+                              <span className="text-white font-bold text-sm">No Result</span>
                             </div>
                             <button
-                              onClick={() => setSelectedGameForChart(game.nickName)}
-                              className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white font-bold py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300 hover:shadow-lg hover:shadow-red-600/50 transform hover:-translate-y-0.5"
+                              className="w-full bg-gradient-to-r from-gray-600 to-gray-700 text-white font-bold py-2 rounded-lg cursor-not-allowed opacity-50"
+                              disabled
                             >
                               View Chart
                             </button>
                           </div>
-                        </>
-                      ) : game.status === 'live' ? (
-                        <div className="text-center">
-                          <div className="bg-gradient-to-r from-yellow-600 to-yellow-700 rounded-lg py-3 px-6 mb-3 shadow-md">
-                            <span className="text-white font-bold text-sm">Result Soon</span>
-                          </div>
-                          <button
-                            className="w-full bg-gradient-to-r from-gray-600 to-gray-700 text-white font-bold py-2 rounded-lg cursor-not-allowed opacity-50"
-                            disabled
-                          >
-                            View Chart
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="text-center">
-                          <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg py-3 px-6 mb-3 shadow-md">
-                            <span className="text-white font-bold text-sm">Coming Soon</span>
-                          </div>
-                          <button
-                            className="w-full bg-gradient-to-r from-gray-600 to-gray-700 text-white font-bold py-2 rounded-lg cursor-not-allowed opacity-50"
-                            disabled
-                          >
-                            View Chart
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        )}
+                      </div>
+                    );
+                  })}
+                {[...primeGames, ...localGames].filter(game => {
+                  const gameResults = results.filter(r => r.name === game.nickName);
+                  return gameResults.length > 0;
+                }).length === 0 && (
+                  <div className="col-span-full text-center text-gray-400 py-8">
+                    <p className="text-lg">No results published for today yet</p>
+                    <p className="text-sm mt-2">Check back later for today's game results</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -407,10 +448,11 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/admin/create-game" element={<CreateGame />} />
-        <Route path="/admin/edit-game/:gameId" element={<CreateGame />} />
-        <Route path="/admin/game-result/:gameId" element={<GameResult />} />
+        <Route path="/admin/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/dashboard-v2" element={<ProtectedRoute><AdminDashboardV2 /></ProtectedRoute>} />
+        <Route path="/admin/create-game" element={<ProtectedRoute><CreateGame /></ProtectedRoute>} />
+        <Route path="/admin/edit-game/:gameId" element={<ProtectedRoute><CreateGame /></ProtectedRoute>} />
+        <Route path="/admin/game-result/:gameId" element={<ProtectedRoute><GameResult /></ProtectedRoute>} />
       </Routes>
     </Router>
   );

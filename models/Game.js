@@ -1,46 +1,51 @@
 const mongoose = require('mongoose');
 
 const gameSchema = new mongoose.Schema({
-  nickName: {
+  name: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
+    maxlength: 100
   },
-  startTime: {
-    type: Date,
-    required: true
+  description: {
+    type: String,
+    trim: true,
+    maxlength: 500
   },
-  endTime: {
-    type: Date,
+  status: {
+    type: String,
+    enum: ['active', 'inactive', 'completed', 'suspended'],
+    default: 'active'
+  },
+  gameType: {
+    type: String,
+    enum: ['lottery', 'draw', 'raffle', 'other'],
+    default: 'lottery'
+  },
+  drawTime: {
+    type: Date
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
     required: true
   },
   isActive: {
     type: Boolean,
     default: true
   },
-  gameType: {
-    type: String,
-    enum: ['prime', 'local'],
-    required: true
+  settings: {
+    minNumber: { type: Number, default: 1 },
+    maxNumber: { type: Number, default: 100 },
+    drawCount: { type: Number, default: 1 },
+    prizeStructure: { type: mongoose.Schema.Types.Mixed }
   }
 }, {
   timestamps: true
 });
 
-// Virtual for status based on current time
-gameSchema.virtual('status').get(function() {
-  const now = new Date();
-  if (now < this.startTime) {
-    return 'coming soon';
-  } else if (now >= this.startTime && now <= this.endTime) {
-    return 'live';
-  } else {
-    return 'ended';
-  }
-});
-
-// Ensure virtual fields are serialized
-gameSchema.set('toJSON', { virtuals: true });
-gameSchema.set('toObject', { virtuals: true });
+// Index for efficient queries
+gameSchema.index({ status: 1, isActive: 1 });
+gameSchema.index({ createdBy: 1 });
 
 module.exports = mongoose.model('Game', gameSchema);

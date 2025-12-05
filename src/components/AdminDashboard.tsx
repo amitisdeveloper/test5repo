@@ -15,21 +15,62 @@ interface Game {
   } | null;
 }
 
+interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  itemsPerPage: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+interface ApiResponse {
+  games: Game[];
+  pagination: PaginationInfo;
+  filters: {
+    gameType?: string;
+    startDate?: string;
+    endDate?: string;
+    nickName?: string;
+  };
+}
+
 function AdminDashboard() {
   const [games, setGames] = useState<Game[]>([]);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showEditTable, setShowEditTable] = useState(false);
+
+  // Filter states
+  const [filters, setFilters] = useState({
+    gameType: '',
+    startDate: '',
+    endDate: '',
+    nickName: ''
+  });
+
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchGames();
   }, []);
 
-  const fetchGames = async () => {
+  const fetchGames = async (page = 1) => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/games/admin', {
+
+      // Build query parameters
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '9',
+        ...Object.fromEntries(
+          Object.entries(filters).filter(([_, value]) => value !== '')
+        )
+      });
+
+      const response = await fetch(`/api/games/admin?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -41,10 +82,24 @@ function AdminDashboard() {
         return;
       }
 
-      const data = await response.json();
-      setGames(data);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data: ApiResponse = await response.json();
+      console.log('API Response:', data);
+      console.log('data.games type:', typeof data.games, 'isArray:', Array.isArray(data.games));
+
+      // Ensure games is always an array
+      const gamesArray = Array.isArray(data.games) ? data.games : [];
+      setGames(gamesArray);
+      setPagination(data.pagination || null);
+      setError(''); // Clear any previous errors
     } catch (err) {
-      setError('Failed to fetch games');
+      console.error('Error fetching games:', err);
+      setError(`Failed to fetch games: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setGames([]); // Reset games on error
+      setPagination(null);
     } finally {
       setLoading(false);
     }
@@ -67,6 +122,28 @@ function AdminDashboard() {
     navigate(`/admin/edit-game/${gameId}`);
   };
 
+  const handleFilterChange = (newFilters: Partial<typeof filters>) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
+  };
+
+  const handleApplyFilters = () => {
+    fetchGames(1); // Reset to first page when applying filters
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      gameType: '',
+      startDate: '',
+      endDate: '',
+      nickName: ''
+    });
+    fetchGames(1);
+  };
+
+  const handlePageChange = (page: number) => {
+    fetchGames(page);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-neutral-950 via-neutral-900 to-neutral-950 flex items-center justify-center">
@@ -82,6 +159,12 @@ function AdminDashboard() {
         <div className="container mx-auto flex justify-between items-center">
           <h1 className="text-2xl font-bold text-yellow-400">Admin Dashboard</h1>
           <div className="flex gap-4">
+            <button
+              onClick={() => navigate('/admin/dashboard-v2')}
+              className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-4 py-2 rounded-lg hover:from-indigo-700 hover:to-indigo-800 transition-all duration-300"
+            >
+              Dashboard V2
+            </button>
             <button
               onClick={() => setShowEditTable(!showEditTable)}
               className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all duration-300"
@@ -114,9 +197,70 @@ function AdminDashboard() {
           </div>
         )}
 
+        {/* Filters */}
+        <div className="bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 rounded-lg p-6 border-2 border-yellow-600/40 mb-6">
+          <h3 className="text-lg font-semibold text-yellow-400 mb-4">Filters</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-yellow-400 mb-2">Game Type</label>
+              <select
+                value={filters.gameType}
+                onChange={(e) => handleFilterChange({ gameType: e.target.value })}
+                className="w-full px-3 py-2 bg-neutral-800 border border-yellow-600/30 rounded-lg text-white focus:outline-none focus:border-yellow-400"
+              >
+                <option value="">All Types</option>
+                <option value="prime">Prime</option>
+                <option value="local">Local</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-yellow-400 mb-2">Game Name</label>
+              <input
+                type="text"
+                value={filters.nickName}
+                onChange={(e) => handleFilterChange({ nickName: e.target.value })}
+                placeholder="Search by name..."
+                className="w-full px-3 py-2 bg-neutral-800 border border-yellow-600/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-yellow-400 mb-2">Start Date</label>
+              <input
+                type="date"
+                value={filters.startDate}
+                onChange={(e) => handleFilterChange({ startDate: e.target.value })}
+                className="w-full px-3 py-2 bg-neutral-800 border border-yellow-600/30 rounded-lg text-white focus:outline-none focus:border-yellow-400"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-yellow-400 mb-2">End Date</label>
+              <input
+                type="date"
+                value={filters.endDate}
+                onChange={(e) => handleFilterChange({ endDate: e.target.value })}
+                className="w-full px-3 py-2 bg-neutral-800 border border-yellow-600/30 rounded-lg text-white focus:outline-none focus:border-yellow-400"
+              />
+            </div>
+            <div className="flex items-end gap-2">
+              <button
+                onClick={handleApplyFilters}
+                className="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-2 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300"
+              >
+                Apply
+              </button>
+              <button
+                onClick={handleClearFilters}
+                className="flex-1 bg-gradient-to-r from-gray-600 to-gray-700 text-white px-4 py-2 rounded-lg hover:from-gray-700 hover:to-gray-800 transition-all duration-300"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Game Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {games.map(game => (
+          {Array.isArray(games) && games.map(game => (
             <div key={game._id} className="bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 rounded-lg p-6 border-2 border-yellow-600/40">
               <div className="flex justify-between items-start mb-4">
                 <div>
@@ -188,7 +332,7 @@ function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {games.map(game => (
+                  {Array.isArray(games) && games.map(game => (
                     <tr key={game._id} className="border-b border-yellow-600/20 hover:bg-amber-950/20">
                       <td className="py-3 px-4 font-semibold text-white">{game.nickName}</td>
                       <td className="py-3 px-4 text-gray-400">{game.gameType.toUpperCase()}</td>
@@ -235,9 +379,57 @@ function AdminDashboard() {
           </div>
         )}
 
-        {games.length === 0 && (
+        {/* Pagination */}
+        {pagination && pagination.totalPages > 1 && (
+          <div className="bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 rounded-lg p-6 border-2 border-yellow-600/40 mt-6">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-300">
+                Showing {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1} to {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} of {pagination.totalItems} games
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handlePageChange(pagination.currentPage - 1)}
+                  disabled={!pagination.hasPrev}
+                  className="px-3 py-2 bg-neutral-800 border border-yellow-600/30 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-700 transition-colors"
+                >
+                  Previous
+                </button>
+
+                {/* Page numbers */}
+                {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                  const pageNum = Math.max(1, Math.min(pagination.totalPages - 4, pagination.currentPage - 2)) + i;
+                  if (pageNum > pagination.totalPages) return null;
+
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => handlePageChange(pageNum)}
+                      className={`px-3 py-2 border rounded-lg transition-colors ${
+                        pageNum === pagination.currentPage
+                          ? 'bg-yellow-600 border-yellow-400 text-white'
+                          : 'bg-neutral-800 border-yellow-600/30 text-white hover:bg-neutral-700'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+
+                <button
+                  onClick={() => handlePageChange(pagination.currentPage + 1)}
+                  disabled={!pagination.hasNext}
+                  className="px-3 py-2 bg-neutral-800 border border-yellow-600/30 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-700 transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {Array.isArray(games) && games.length === 0 && !loading && (
           <div className="text-center text-gray-400 mt-12">
-            <p>No games found. Create your first game!</p>
+            <p>No games found. Try adjusting your filters or create a new game!</p>
           </div>
         )}
       </main>
