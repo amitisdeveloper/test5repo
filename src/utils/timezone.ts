@@ -10,18 +10,33 @@ const GAME_DAY_RESET = 6;  // 6am
  * Get current UTC date considering the custom game day cycle
  */
 export function getGameDate(): Date {
-  const options = { timeZone: 'Asia/Calcutta' } as const;
-  const utcNow = new Date(new Date().toLocaleString('en-US', options));
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Calcutta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
 
-  const currentHour = utcNow.getHours();
+  const parts = formatter.formatToParts(now);
+  const dateMap = new Map(parts.map(part => [part.type, part.value]));
 
-  if (currentHour < GAME_DAY_RESET) {
-    const previousDay = new Date(utcNow);
-    previousDay.setDate(previousDay.getDate() - 1);
-    return previousDay;
+  const year = parseInt(dateMap.get('year') || '');
+  const month = parseInt(dateMap.get('month') || '') - 1;
+  const day = parseInt(dateMap.get('day') || '');
+  const hours = parseInt(dateMap.get('hour') || '');
+
+  const istDate = new Date(year, month, day, hours, parseInt(dateMap.get('minute') || ''), parseInt(dateMap.get('second') || ''));
+
+  if (hours < GAME_DAY_RESET) {
+    istDate.setDate(istDate.getDate() - 1);
   }
 
-  return utcNow;
+  return istDate;
 }
 
 /**
