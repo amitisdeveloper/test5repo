@@ -44,6 +44,7 @@ function GameResultsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const token = localStorage.getItem('token');
+  const API_BASE = import.meta.env.DEV ? 'http://localhost:3001/api' : '/api';
 
   // Fetch results
   const fetchResults = async (page: number = 1) => {
@@ -51,7 +52,7 @@ function GameResultsPage() {
       setLoading(true);
       setError('');
 
-      let url = `http://localhost:3001/api/admin/game-results?page=${page}&limit=10`;
+      let url = `${API_BASE}/admin/game-results?page=${page}&limit=10`;
       if (startDate) url += `&startDate=${startDate}`;
       if (endDate) url += `&endDate=${endDate}`;
 
@@ -86,7 +87,7 @@ function GameResultsPage() {
     publishedNumber: string;
   }) => {
     try {
-      const response = await fetch('http://localhost:3001/api/admin/game-results', {
+      const response = await fetch(`${API_BASE}/admin/game-results`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -122,7 +123,7 @@ function GameResultsPage() {
         return;
       }
 
-      const response = await fetch(`http://localhost:3001/api/admin/game-results/${resultId}`, {
+      const response = await fetch(`${API_BASE}/admin/game-results/${resultId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -147,7 +148,7 @@ function GameResultsPage() {
 
   const handleDelete = async (resultId: string) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/admin/game-results/${resultId}`, {
+      const response = await fetch(`${API_BASE}/admin/game-results/${resultId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

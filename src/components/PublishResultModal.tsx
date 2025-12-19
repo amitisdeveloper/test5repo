@@ -31,6 +31,8 @@ function PublishResultModal({ isOpen, onClose, onSubmit, loading, error }: Publi
     publishedNumber: ''
   });
 
+  const API_BASE = import.meta.env.DEV ? 'http://localhost:3001/api' : '/api';
+
   // Set default date to today
   useEffect(() => {
     if (isOpen) {
@@ -48,7 +50,7 @@ function PublishResultModal({ isOpen, onClose, onSubmit, loading, error }: Publi
     try {
       setLoadingGames(true);
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/games/admin/active-games', {
+      const response = await fetch(`${API_BASE}/games/admin/active-games`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
