@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { X } from 'lucide-react';
 
 interface Game {
   _id: string;
   nickName: string;
-  startTime: string;
-  endTime: string;
-  gameType: string;
+  gameType: 'local' | 'prime';
   isActive: boolean;
   latestResult?: {
     result: string;
@@ -31,8 +30,217 @@ interface ApiResponse {
     gameType?: string;
     startDate?: string;
     endDate?: string;
-    nickName?: string;
+    search?: string;
   };
+}
+
+// Modal component for Create/Edit operations
+interface GameModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  game?: Game | null;
+  mode: 'create' | 'edit' | 'publish';
+  onSubmit: (data: any) => Promise<void>;
+}
+
+function GameModal({ isOpen, onClose, game, mode, onSubmit }: GameModalProps) {
+  const [formData, setFormData] = useState({
+    nickName: '',
+    gameType: 'local' as 'local' | 'prime',
+    isActive: true,
+    result: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (game && (mode === 'edit' || mode === 'publish')) {
+      setFormData({
+        nickName: game.nickName || '',
+        gameType: game.gameType || 'local',
+        isActive: game.isActive,
+        result: game.latestResult?.result || ''
+      });
+    } else if (mode === 'create') {
+      setFormData({
+        nickName: '',
+        gameType: 'local',
+        isActive: true,
+        result: ''
+      });
+    }
+    setError('');
+  }, [game, mode, isOpen]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      if (mode === 'publish') {
+        await onSubmit({
+          result: formData.result,
+          gameId: game?._id
+        });
+      } else {
+        await onSubmit(formData);
+      }
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getModalTitle = () => {
+    switch (mode) {
+      case 'create': return 'Create New Game';
+      case 'edit': return 'Edit Game';
+      case 'publish': return 'Publish Game Result';
+      default: return 'Game Modal';
+    }
+  };
+
+  const getSubmitButtonText = () => {
+    if (loading) {
+      switch (mode) {
+        case 'create': return 'Creating...';
+        case 'edit': return 'Updating...';
+        case 'publish': return 'Publishing...';
+        default: return 'Loading...';
+      }
+    }
+    switch (mode) {
+      case 'create': return 'Create Game';
+      case 'edit': return 'Update Game';
+      case 'publish': return 'Publish Result';
+      default: return 'Submit';
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-gradient-to-br from-amber-950/90 via-neutral-900 to-amber-950/90 rounded-xl border-2 border-yellow-600/40 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex justify-between items-center p-6 border-b border-yellow-600/30">
+          <h2 className="text-2xl font-bold text-yellow-400">{getModalTitle()}</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white transition-colors"
+          >
+            <X size={24} />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {mode !== 'publish' && (
+            <>
+              {/* Game Name */}
+              <div>
+                <label className="block text-sm font-medium text-yellow-400 mb-2">
+                  Game Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.nickName}
+                  onChange={(e) => setFormData({ ...formData, nickName: e.target.value })}
+                  className="w-full px-4 py-3 bg-neutral-800 border border-yellow-600/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
+                  placeholder="Enter game name"
+                  required
+                  disabled={mode === 'edit' && !!game?.latestResult}
+                />
+              </div>
+
+              {mode === 'edit' && (
+                <>
+                  {/* Game Type */}
+                  <div>
+                    <label className="block text-sm font-medium text-yellow-400 mb-2">
+                      Game Type *
+                    </label>
+                    <select
+                      value={formData.gameType}
+                      onChange={(e) => setFormData({ ...formData, gameType: e.target.value as 'local' | 'prime' })}
+                      className="w-full px-4 py-3 bg-neutral-800 border border-yellow-600/30 rounded-lg text-white focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
+                      required
+                      disabled={mode === 'edit' && !!game?.latestResult}
+                    >
+                      <option value="local">Local</option>
+                      <option value="prime">Prime</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {/* Active Status */}
+              <div className="flex items-center space-x-3">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  checked={formData.isActive}
+                  onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                  className="w-4 h-4 text-yellow-600 bg-neutral-800 border-yellow-600/30 rounded focus:ring-yellow-500 focus:ring-2"
+                />
+                <label htmlFor="isActive" className="text-sm font-medium text-yellow-400">
+                  Active Game
+                </label>
+              </div>
+            </>
+          )}
+
+          {mode === 'publish' && (
+            <div>
+              <label className="block text-sm font-medium text-yellow-400 mb-2">
+                Game Result *
+              </label>
+              <input
+                type="text"
+                value={formData.result}
+                onChange={(e) => setFormData({ ...formData, result: e.target.value })}
+                className="w-full px-4 py-3 bg-neutral-800 border border-yellow-600/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
+                placeholder="Enter the game result"
+                required
+              />
+              <p className="text-gray-400 text-sm mt-1">
+                Publishing result for: <span className="text-yellow-400 font-medium">{game?.nickName}</span>
+              </p>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {error && (
+            <div className="text-red-400 text-sm bg-red-900/20 border border-red-600/30 rounded-lg p-3">
+              {error}
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex gap-4 pt-4">
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white font-bold py-3 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {getSubmitButtonText()}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="flex-1 bg-gradient-to-r from-gray-600 to-gray-700 text-white font-bold py-3 rounded-lg hover:from-gray-700 hover:to-gray-800 transition-all duration-300 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 function AdminDashboard() {
@@ -40,6 +248,7 @@ function AdminDashboard() {
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [showEditTable, setShowEditTable] = useState(false);
 
   // Filter states
@@ -47,30 +256,44 @@ function AdminDashboard() {
     gameType: '',
     startDate: '',
     endDate: '',
-    nickName: ''
+    search: ''
+  });
+
+  // Modal states
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    mode: 'create' | 'edit' | 'publish';
+    game: Game | null;
+  }>({
+    isOpen: false,
+    mode: 'create',
+    game: null
   });
 
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchGames();
-  }, []);
+  }, [filters, modalState.isOpen]); // Refetch when filters change or modal closes
+
+  const API_BASE = import.meta.env.DEV ? 'http://localhost:3001/api' : '/api';
 
   const fetchGames = async (page = 1) => {
     try {
       setLoading(true);
+      setError('');
       const token = localStorage.getItem('token');
 
       // Build query parameters
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: '9',
+        limit: '10',
         ...Object.fromEntries(
           Object.entries(filters).filter(([_, value]) => value !== '')
         )
       });
 
-      const response = await fetch(`/api/games/admin?${params}`, {
+      const response = await fetch(`${API_BASE}/games/admin?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -88,17 +311,16 @@ function AdminDashboard() {
 
       const data: ApiResponse = await response.json();
       console.log('API Response:', data);
-      console.log('data.games type:', typeof data.games, 'isArray:', Array.isArray(data.games));
 
       // Ensure games is always an array
       const gamesArray = Array.isArray(data.games) ? data.games : [];
       setGames(gamesArray);
       setPagination(data.pagination || null);
-      setError(''); // Clear any previous errors
+      setError('');
     } catch (err) {
       console.error('Error fetching games:', err);
       setError(`Failed to fetch games: ${err instanceof Error ? err.message : 'Unknown error'}`);
-      setGames([]); // Reset games on error
+      setGames([]);
       setPagination(null);
     } finally {
       setLoading(false);
@@ -110,16 +332,139 @@ function AdminDashboard() {
     navigate('/admin/login');
   };
 
-  const handlePublishResult = (gameId: string) => {
-    navigate(`/admin/game-result/${gameId}`);
+  const openModal = (mode: 'create' | 'edit' | 'publish', game?: Game) => {
+    setModalState({
+      isOpen: true,
+      mode,
+      game: game || null
+    });
+    setError('');
+    setSuccess('');
   };
 
-  const handleCreateGame = () => {
-    navigate('/admin/create-game');
+  const closeModal = () => {
+    setModalState({
+      isOpen: false,
+      mode: 'create',
+      game: null
+    });
+    setError('');
+    setSuccess('');
   };
 
-  const handleEditGame = (gameId: string) => {
-    navigate(`/admin/edit-game/${gameId}`);
+  const handleGameSubmit = async (data: any) => {
+    try {
+      setError('');
+      const token = localStorage.getItem('token');
+
+      if (modalState.mode === 'create') {
+        const response = await fetch(`${API_BASE}/games`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        setSuccess('Game created successfully!');
+      } else if (modalState.mode === 'edit') {
+        const response = await fetch(`${API_BASE}/games/${modalState.game!._id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        setSuccess('Game updated successfully!');
+      }
+      
+      // Refresh games list
+      await fetchGames();
+    } catch (err) {
+      throw new Error(err instanceof Error ? err.message : 'An error occurred');
+    }
+  };
+
+  const handleDeleteGame = async (gameId: string) => {
+    if (!window.confirm('Are you sure you want to delete this game?')) {
+      return;
+    }
+
+    try {
+      setError('');
+      const token = localStorage.getItem('token');
+      console.log('Starting delete for game:', gameId);
+      
+      const response = await fetch(`${API_BASE}/games/${gameId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      console.log('Delete response status:', response.status);
+
+      if (response.status === 401) {
+        localStorage.removeItem('token');
+        navigate('/admin/login');
+        return;
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const responseData = await response.json();
+      console.log('Delete response data:', responseData);
+
+      setSuccess('Game deleted successfully!');
+      
+      console.log('Refetching games from page:', pagination?.currentPage || 1);
+      await fetchGames(pagination?.currentPage || 1);
+      
+    } catch (err) {
+      console.error('Error deleting game:', err);
+      setError(`Failed to delete game: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  const handlePublishResult = async (data: any) => {
+    try {
+      setError('');
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE}/results`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          gameId: data.gameId,
+          result: data.result,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      setSuccess('Result published successfully!');
+      await fetchGames();
+    } catch (err) {
+      throw new Error(err instanceof Error ? err.message : 'An error occurred');
+    }
   };
 
   const handleFilterChange = (newFilters: Partial<typeof filters>) => {
@@ -135,13 +480,37 @@ function AdminDashboard() {
       gameType: '',
       startDate: '',
       endDate: '',
-      nickName: ''
+      search: ''
     });
     fetchGames(1);
   };
 
   const handlePageChange = (page: number) => {
     fetchGames(page);
+  };
+
+  const getStatusBadge = (game: Game) => {
+    if (!game.isActive) {
+      return (
+        <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-900/50 text-red-400 border border-red-600/30">
+          Inactive
+        </span>
+      );
+    }
+
+    if (game.latestResult) {
+      return (
+        <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-900/50 text-green-400 border border-green-600/30">
+          Completed
+        </span>
+      );
+    }
+
+    return (
+      <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-900/50 text-blue-400 border border-blue-600/30">
+        Active
+      </span>
+    );
   };
 
   if (loading) {
@@ -160,22 +529,34 @@ function AdminDashboard() {
           <h1 className="text-2xl font-bold text-yellow-400">Admin Dashboard</h1>
           <div className="flex gap-4">
             <button
+              onClick={() => openModal('create')}
+              className="bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-2 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300"
+            >
+              Create Game
+            </button>
+            <button
               onClick={() => navigate('/admin/dashboard-v2')}
               className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-4 py-2 rounded-lg hover:from-indigo-700 hover:to-indigo-800 transition-all duration-300"
             >
               Dashboard V2
             </button>
             <button
+              onClick={() => navigate('/admin/game-results')}
+              className="bg-gradient-to-r from-cyan-600 to-cyan-700 text-white px-4 py-2 rounded-lg hover:from-cyan-700 hover:to-cyan-800 transition-all duration-300"
+            >
+              Published Results
+            </button>
+            <button
+              onClick={() => navigate('/admin/daily-results')}
+              className="bg-gradient-to-r from-orange-600 to-orange-700 text-white px-4 py-2 rounded-lg hover:from-orange-700 hover:to-orange-800 transition-all duration-300"
+            >
+              Daily Results
+            </button>
+            <button
               onClick={() => setShowEditTable(!showEditTable)}
               className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all duration-300"
             >
               {showEditTable ? 'Hide Edit Table' : 'Show Edit Table'}
-            </button>
-            <button
-              onClick={handleCreateGame}
-              className="bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-2 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300"
-            >
-              Create Game
             </button>
             <button
               onClick={handleLogout}
@@ -191,15 +572,22 @@ function AdminDashboard() {
       <main className="container mx-auto p-6">
         <h2 className="text-xl font-semibold text-yellow-400 mb-6">Games Management</h2>
 
+        {/* Status Messages */}
         {error && (
-          <div className="text-red-400 text-sm bg-red-900/20 border border-red-600/30 rounded-lg p-3 mb-6">
+          <div className="mb-6 text-red-400 text-sm bg-red-900/20 border border-red-600/30 rounded-lg p-4">
             {error}
           </div>
         )}
 
-        {/* Filters */}
+        {success && (
+          <div className="mb-6 text-green-400 text-sm bg-green-900/20 border border-green-600/30 rounded-lg p-4">
+            {success}
+          </div>
+        )}
+
+        {/* Enhanced Filters */}
         <div className="bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 rounded-lg p-6 border-2 border-yellow-600/40 mb-6">
-          <h3 className="text-lg font-semibold text-yellow-400 mb-4">Filters</h3>
+          <h3 className="text-lg font-semibold text-yellow-400 mb-4">Filters & Search</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-yellow-400 mb-2">Game Type</label>
@@ -214,11 +602,11 @@ function AdminDashboard() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-yellow-400 mb-2">Game Name</label>
+              <label className="block text-sm font-medium text-yellow-400 mb-2">Search</label>
               <input
                 type="text"
-                value={filters.nickName}
-                onChange={(e) => handleFilterChange({ nickName: e.target.value })}
+                value={filters.search}
+                onChange={(e) => handleFilterChange({ search: e.target.value })}
                 placeholder="Search by name..."
                 className="w-full px-3 py-2 bg-neutral-800 border border-yellow-600/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400"
               />
@@ -258,6 +646,32 @@ function AdminDashboard() {
           </div>
         </div>
 
+        {/* Summary Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-gradient-to-br from-blue-950/70 via-neutral-900 to-blue-950/70 rounded-lg p-4 border border-blue-600/30">
+            <div className="text-blue-400 text-sm font-medium">Total Games</div>
+            <div className="text-2xl font-bold text-white">{pagination?.totalItems || 0}</div>
+          </div>
+          <div className="bg-gradient-to-br from-green-950/70 via-neutral-900 to-green-950/70 rounded-lg p-4 border border-green-600/30">
+            <div className="text-green-400 text-sm font-medium">Active Games</div>
+            <div className="text-2xl font-bold text-white">
+              {games.filter(g => g.isActive && !g.latestResult).length}
+            </div>
+          </div>
+          <div className="bg-gradient-to-br from-purple-950/70 via-neutral-900 to-purple-950/70 rounded-lg p-4 border border-purple-600/30">
+            <div className="text-purple-400 text-sm font-medium">Completed</div>
+            <div className="text-2xl font-bold text-white">
+              {games.filter(g => g.latestResult).length}
+            </div>
+          </div>
+          <div className="bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 rounded-lg p-4 border border-amber-600/30">
+            <div className="text-amber-400 text-sm font-medium">Inactive</div>
+            <div className="text-2xl font-bold text-white">
+              {games.filter(g => !g.isActive).length}
+            </div>
+          </div>
+        </div>
+
         {/* Game Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {Array.isArray(games) && games.map(game => (
@@ -267,26 +681,10 @@ function AdminDashboard() {
                   <h3 className="text-lg font-bold text-yellow-400">{game.nickName}</h3>
                   <p className="text-gray-400 text-sm">{game.gameType.toUpperCase()}</p>
                 </div>
-                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                  game.isActive
-                    ? 'bg-green-900/50 text-green-400 border border-green-600/30'
-                    : 'bg-red-900/50 text-red-400 border border-red-600/30'
-                }`}>
-                  {game.isActive ? 'Active' : 'Inactive'}
-                </span>
+                {getStatusBadge(game)}
               </div>
 
               <div className="text-sm text-gray-300 mb-4">
-                <p>Start: {new Date(game.startTime).toLocaleTimeString('en-US', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: true
-                })}</p>
-                <p>End: {new Date(game.endTime).toLocaleTimeString('en-US', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: true
-                })}</p>
                 {game.latestResult && (
                   <div className="mt-2 p-2 bg-green-900/20 border border-green-600/30 rounded">
                     <p className="text-green-400 font-semibold">Latest Result: {game.latestResult.result}</p>
@@ -299,16 +697,16 @@ function AdminDashboard() {
 
               <div className="flex gap-2">
                 <button
-                  onClick={() => handlePublishResult(game._id)}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-2 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300 text-sm"
-                >
-                  Publish Result
-                </button>
-                <button
-                  onClick={() => handleEditGame(game._id)}
+                  onClick={() => openModal('edit', game)}
                   className="flex-1 bg-gradient-to-r from-yellow-600 to-amber-600 text-white px-3 py-2 rounded-lg hover:from-yellow-700 hover:to-amber-700 transition-all duration-300 text-sm"
                 >
                   Edit
+                </button>
+                <button
+                  onClick={() => handleDeleteGame(game._id)}
+                  className="flex-1 bg-gradient-to-r from-red-600 to-red-700 text-white px-3 py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300 text-sm"
+                >
+                  Delete
                 </button>
               </div>
             </div>
@@ -325,8 +723,7 @@ function AdminDashboard() {
                   <tr className="border-b border-yellow-600/30">
                     <th className="text-left py-2 px-4 text-yellow-400">Game Name</th>
                     <th className="text-left py-2 px-4 text-yellow-400">Type</th>
-                    <th className="text-left py-2 px-4 text-yellow-400">Start Time</th>
-                    <th className="text-left py-2 px-4 text-yellow-400">End Time</th>
+                    <th className="text-left py-2 px-4 text-yellow-400">Status</th>
                     <th className="text-left py-2 px-4 text-yellow-400">Latest Result</th>
                     <th className="text-left py-2 px-4 text-yellow-400">Actions</th>
                   </tr>
@@ -336,19 +733,8 @@ function AdminDashboard() {
                     <tr key={game._id} className="border-b border-yellow-600/20 hover:bg-amber-950/20">
                       <td className="py-3 px-4 font-semibold text-white">{game.nickName}</td>
                       <td className="py-3 px-4 text-gray-400">{game.gameType.toUpperCase()}</td>
-                      <td className="py-3 px-4 text-gray-400">
-                        {new Date(game.startTime).toLocaleTimeString('en-US', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          hour12: true
-                        })}
-                      </td>
-                      <td className="py-3 px-4 text-gray-400">
-                        {new Date(game.endTime).toLocaleTimeString('en-US', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          hour12: true
-                        })}
+                      <td className="py-3 px-4">
+                        {getStatusBadge(game)}
                       </td>
                       <td className="py-3 px-4">
                         {game.latestResult ? (
@@ -364,12 +750,20 @@ function AdminDashboard() {
                         )}
                       </td>
                       <td className="py-3 px-4">
-                        <button
-                          onClick={() => handleEditGame(game._id)}
-                          className="bg-gradient-to-r from-yellow-600 to-amber-600 text-white px-3 py-1 rounded text-xs hover:from-yellow-700 hover:to-amber-700 transition-all duration-300"
-                        >
-                          Edit
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => openModal('edit', game)}
+                            className="bg-gradient-to-r from-yellow-600 to-amber-600 text-white px-3 py-1 rounded text-xs hover:from-yellow-700 hover:to-amber-700 transition-all duration-300"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteGame(game._id)}
+                            className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 py-1 rounded text-xs hover:from-red-700 hover:to-red-800 transition-all duration-300"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -433,6 +827,15 @@ function AdminDashboard() {
           </div>
         )}
       </main>
+
+      {/* Game Modal */}
+      <GameModal
+        isOpen={modalState.isOpen}
+        onClose={closeModal}
+        game={modalState.game}
+        mode={modalState.mode}
+        onSubmit={modalState.mode === 'publish' ? handlePublishResult : handleGameSubmit}
+      />
     </div>
   );
 }

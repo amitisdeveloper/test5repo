@@ -8,8 +8,6 @@ function CreateGame() {
 
   const [formData, setFormData] = useState({
     nickName: '',
-    startTime: '',
-    endTime: '',
     gameType: 'prime',
     isActive: true
   });
@@ -25,7 +23,7 @@ function CreateGame() {
   const fetchGame = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/games/admin`, {
+      const response = await fetch(`/api/games/${gameId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -37,14 +35,11 @@ function CreateGame() {
         return;
       }
 
-      const games = await response.json();
-      const game = games.find((g: any) => g._id === gameId);
+      const game = await response.json();
 
       if (game) {
         setFormData({
           nickName: game.nickName,
-          startTime: new Date(game.startTime).toISOString().slice(0, 16),
-          endTime: new Date(game.endTime).toISOString().slice(0, 16),
           gameType: game.gameType,
           isActive: game.isActive
         });
@@ -126,38 +121,6 @@ function CreateGame() {
                 placeholder="Enter game name"
                 required
               />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="startTime" className="block text-sm font-medium text-yellow-400 mb-2">
-                  Start Time
-                </label>
-                <input
-                  type="datetime-local"
-                  id="startTime"
-                  name="startTime"
-                  value={formData.startTime}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 bg-neutral-800 border border-yellow-600/30 rounded-lg text-white focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="endTime" className="block text-sm font-medium text-yellow-400 mb-2">
-                  End Time
-                </label>
-                <input
-                  type="datetime-local"
-                  id="endTime"
-                  name="endTime"
-                  value={formData.endTime}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 bg-neutral-800 border border-yellow-600/30 rounded-lg text-white focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400"
-                  required
-                />
-              </div>
             </div>
 
             <div>

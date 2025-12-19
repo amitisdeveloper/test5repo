@@ -4,8 +4,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 interface Game {
   _id: string;
   nickName: string;
-  startTime: string;
-  endTime: string;
   gameType: string;
 }
 
@@ -121,9 +119,6 @@ function GameResult() {
 
           <div className="mb-6 p-4 bg-neutral-900/50 rounded-lg">
             <h2 className="text-xl font-semibold text-white mb-2">{game.nickName}</h2>
-            <p className="text-gray-400 text-sm">
-              {new Date(game.startTime).toLocaleString()} - {new Date(game.endTime).toLocaleString()}
-            </p>
             <span className={`inline-block mt-2 text-xs px-2 py-1 rounded ${game.gameType === 'prime' ? 'bg-blue-600' : 'bg-green-600'}`}>
               {game.gameType.toUpperCase()}
             </span>

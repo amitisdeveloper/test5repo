@@ -1,0 +1,99 @@
+{
+  "users": [
+    {
+      "_id": "692b8304eebc2d966faecbcc",
+      "username": "admin",
+      "email": "admin@555results.com",
+      "password": "$2a$10$exampleHashedPassword",
+      "role": "admin",
+      "isActive": true
+    }
+  ],
+  "games": [
+    {
+      "_id": "6944377216a10f699b4e398a",
+      "nickName": "Faridabad",
+      "status": "active",
+      "gameType": "local",
+      "createdBy": "692b8304eebc2d966faecbcc",
+      "isActive": true,
+      "settings": {
+        "minNumber": 1,
+        "maxNumber": 100,
+        "drawCount": 1
+      }
+    },
+    {
+      "_id": "6944376916a10f699b4e3978",
+      "nickName": "Shri Ganesh",
+      "status": "active",
+      "gameType": "local",
+      "createdBy": "692b8304eebc2d966faecbcc",
+      "isActive": true,
+      "settings": {
+        "minNumber": 1,
+        "maxNumber": 100,
+        "drawCount": 1
+      }
+    },
+    {
+      "_id": "6944326116a10f699b4e3925",
+      "nickName": "Delhi Bazaar",
+      "status": "active",
+      "gameType": "local",
+      "createdBy": "692b8304eebc2d966faecbcc",
+      "isActive": true,
+      "settings": {
+        "minNumber": 1,
+        "maxNumber": 100,
+        "drawCount": 1
+      }
+    }
+  ],
+  "results": [
+    {
+      "gameId": "6944326116a10f699b4e3925",
+      "result": "01",
+      "drawDate": "2025-12-18T17:18:51.581Z",
+      "isOfficial": true,
+      "verifiedBy": "692b8304eebc2d966faecbcc",
+      "verifiedAt": "2025-12-18T17:18:51.581Z"
+    },
+    {
+      "gameId": "6944377216a10f699b4e398a",
+      "result": "45",
+      "drawDate": "2025-12-18T17:00:00.000Z",
+      "isOfficial": true,
+      "verifiedBy": "692b8304eebc2d966faecbcc",
+      "verifiedAt": "2025-12-18T17:00:00.000Z"
+    },
+    {
+      "gameId": "6944376916a10f699b4e3978",
+      "result": "67",
+      "drawDate": "2025-12-18T16:30:00.000Z",
+      "isOfficial": true,
+      "verifiedBy": "692b8304eebc2d966faecbcc",
+      "verifiedAt": "2025-12-18T16:30:00.000Z"
+    }
+  ],
+  "gamepublishedresults": [
+    {
+      "gameId": "6944326116a10f699b4e3925",
+      "publishDate": "2025-12-18T17:18:51.581Z",
+      "publishedNumber": "01",
+      "createdBy": "692b8304eebc2d966faecbcc"
+    },
+    {
+      "gameId": "6944377216a10f699b4e398a",
+      "publishDate": "2025-12-18T17:00:00.000Z",
+      "publishedNumber": "45",
+      "createdBy": "692b8304eebc2d966faecbcc"
+    },
+    {
+      "gameId": "6944376916a10f699b4e3978",
+      "publishDate": "2025-12-18T16:30:00.000Z",
+      "publishedNumber": "67",
+      "createdBy": "692b8304eebc2d966faecbcc"
+    }
+  ]
+}

@@ -16,8 +16,10 @@ dist/
 **/dist/
 dist-ssr/
 
-# Environment
+# Environment (NEVER commit these)
 .env
+.env.local
+.env.production
 *.local
 
 # IDE and system

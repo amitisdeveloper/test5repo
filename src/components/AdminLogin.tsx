@@ -28,10 +28,11 @@ function AdminLogin() {
         localStorage.setItem('token', data.token);
         navigate('/admin/dashboard');
       } else {
-        setError(data.error || 'Login failed');
+        setError(data.error || `Login failed: ${response.status}`);
       }
     } catch (err) {
-      setError('Network error. Please try again.');
+      console.error('Login error:', err);
+      setError(err instanceof Error ? err.message : 'Network error. Please try again.');
     } finally {
       setLoading(false);
     }

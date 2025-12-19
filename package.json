@@ -4,15 +4,15 @@
   "description": "555 Results Full-Stack App",
   "main": "server.js",
   "scripts": {
-    "start": "netlify dev",
     "dev": "vite dev",
-    "server": "node server.js",
-    "server:enhanced": "node server-enhanced.js",
-    "dev:full": "concurrently \"npm run server\" \"npm run dev\"",
-    "dev:enhanced": "concurrently \"npm run server:enhanced\" \"npm run dev\"",
+    "dev:server": "cross-env NODE_ENV=development node server.js",
+    "dev:full": "concurrently \"npm run dev:server\" \"npm run dev\"",
     "build": "vite build",
     "preview": "vite preview",
-    "test:backend": "node test-backend.js"
+    "start": "cross-env NODE_ENV=production node server.js",
+    "start:dev": "cross-env NODE_ENV=development node server.js",
+    "test:backend": "node test-backend.js",
+    "create-admin": "node scripts/create-admin.js"
   },
   "dependencies": {
     "axios": "^1.6.2",
