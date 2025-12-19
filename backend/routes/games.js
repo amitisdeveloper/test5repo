@@ -5,6 +5,9 @@ const GamePublishedResult = require('../models/GamePublishedResult');
 const eventEmitter = require('../utils/eventEmitter');
 const { 
   getGameDate, 
+  getCurrentGameDayIST,
+  startOfDayIST,
+  endOfDayIST,
   getGameDateIST,
   getGameDateForTime, 
   formatGameDate, 
@@ -51,6 +54,12 @@ const verifyToken = async (req, res, next) => {
 // Get all games (public endpoint) with today's result status
 router.get('/', async (req, res) => {
   try {
+    // 🔍 BACKEND TIMEZONE DEBUG
+    console.log('🕒 === BACKEND GAMES API TIMEZONE DEBUG ===');
+    console.log('Request from:', req.ip);
+    console.log('Server Time (UTC):', new Date().toISOString());
+    console.log('Server Time (Local):', new Date().toLocaleString());
+    
     const { status, gameType } = req.query;
     const query = { isActive: true };
     
@@ -66,9 +75,10 @@ router.get('/', async (req, res) => {
       .populate('createdBy', 'username email')
       .sort({ createdAt: -1 });
 
-    const todayGameDate = getGameDate();
-    const todayStart = getGameDayStart(todayGameDate);
-    const todayEnd = getGameDayEnd(todayGameDate);
+    // Use single IST day boundary for all filtering
+    const todayGameDate = getCurrentGameDayIST();
+    const todayStart = startOfDayIST();
+    const todayEnd = endOfDayIST();
 
     const publishedResults = await GamePublishedResult.find({
       publishDate: {
@@ -135,7 +145,11 @@ router.get('/', async (req, res) => {
       localWithResults,
       todayGameDate: formatGameDate(todayGameDate),
       todayDateIST: getTodayDateStringIST(),
-      todayDateIST_YYYYMMDD: getTodayDateStringIST_YYYYMMDD()
+      todayDateIST_YYYYMMDD: getTodayDateStringIST_YYYYMMDD(),
+      filteringRange: {
+        start: todayStart.toISOString(),
+        end: todayEnd.toISOString()
+      }
     });
   } catch (error) {
     console.error('Get games error:', error);

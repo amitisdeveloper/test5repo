@@ -32,6 +32,14 @@ function HomePage() {
           setLoading(true);
         }
         
+        // 🔍 TIMEZONE DEBUGGING - Show exact timezone info
+        console.log('🕒 === TIMEZONE DEBUG INFO ===');
+        console.log('Browser Timezone:', Intl.DateTimeFormat().resolvedOptions().timeZone);
+        console.log('Current UTC Time:', new Date().toISOString());
+        console.log('Local Time String:', new Date().toLocaleString());
+        console.log('Local Time Zone Offset:', new Date().getTimezoneOffset(), 'minutes');
+        console.log(' IST (Asia/Kolkata) Time:', new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+        
         const [gamesResponse, latestResultResponse] = await Promise.all([
           fetch('/api/games'),
           fetch('/api/games/latest-result')
@@ -43,6 +51,16 @@ function HomePage() {
 
         const gamesData = await gamesResponse.json();
         const latestResultData = await latestResultResponse.json();
+
+        // 🔍 API TIMEZONE DEBUGGING - Show backend timezone info
+        console.log('🕒 === BACKEND TIMEZONE INFO ===');
+        console.log('todayGameDate from API:', gamesData.todayGameDate);
+        console.log('todayDateIST from API:', gamesData.todayDateIST);
+        console.log('todayDateIST_YYYYMMDD from API:', gamesData.todayDateIST_YYYYMMDD);
+        console.log('filteringRange from API:', gamesData.filteringRange);
+        console.log('localWithResults count:', gamesData.localWithResults?.length || 0);
+        console.log('todaysResults count:', gamesData.todaysResults?.length || 0);
+        console.log('🕒 =========================');
 
         // Combine local games with their result status
         const allLocalGames = gamesData.localUpcoming || [];

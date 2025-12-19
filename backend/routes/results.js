@@ -1,7 +1,7 @@
 const express = require('express');
 const Result = require('../models/Result');
 const Game = require('../models/Game');
-const { getTodayDateIST } = require('../utils/timezone');
+const { getTodayDateIST, getCurrentGameDayIST } = require('../utils/timezone');
 const router = express.Router();
 
 // Middleware to verify JWT token
@@ -82,10 +82,10 @@ router.post('/', verifyToken, async (req, res) => {
     const newResult = new Result({
       gameId,
       result,
-      drawDate: getTodayDateIST(),
+      drawDate: getCurrentGameDayIST(),
       isOfficial: req.user.role === 'admin',
       verifiedBy: req.user.role === 'admin' ? req.user.userId : null,
-      verifiedAt: req.user.role === 'admin' ? getTodayDateIST() : null
+      verifiedAt: req.user.role === 'admin' ? getCurrentGameDayIST() : null
     });
 
     await newResult.save();
@@ -199,7 +199,7 @@ router.patch('/:id/verify', verifyToken, async (req, res) => {
 
     result.isOfficial = true;
     result.verifiedBy = req.user.userId;
-    result.verifiedAt = getTodayDateIST();
+    result.verifiedAt = getCurrentGameDayIST();
     
     await result.save();
     await result.populate([
