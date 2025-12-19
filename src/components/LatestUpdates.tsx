@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Trophy, Clock, Sparkles } from 'lucide-react';
+import { formatGameDate, getGameDate } from '../utils/timezone';
 
 interface LatestResult {
   gameName?: string;
@@ -43,11 +44,7 @@ function LatestUpdates({ latestResult, isLoading = false }: LatestUpdatesProps) 
     name: latestResult.name || latestResult.gameName || 'Unknown Game',
     result: latestResult.result || latestResult.publishedNumber || '0',
     time: latestResult.time || '00:00 AM',
-    formattedDate: latestResult.formattedDate || new Date().toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    })
+    formattedDate: latestResult.formattedDate || formatGameDate(getGameDate())
   } : null;
 
   if (isLoading) {

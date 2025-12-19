@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { formatGameDate } from '../utils/timezone';
 
 interface Result {
   _id: string;
@@ -165,11 +166,7 @@ function AdminDashboardV2() {
                   <tr key={`${group.gameName}-${group.date}`} className="border-b border-yellow-600/20 hover:bg-amber-950/20">
                     <td className="py-4 px-4 font-semibold text-white">{group.gameName}</td>
                     <td className="py-4 px-4 text-gray-400">
-                      {new Date(group.date).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                      })}
+                      {formatGameDate(new Date(group.date))}
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex flex-wrap gap-2">

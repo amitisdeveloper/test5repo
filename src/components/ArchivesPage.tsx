@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Archive, Calendar, Search, ArrowLeft } from 'lucide-react';
-import { formatGameDate } from '../utils/timezone';
+import { formatGameDate, formatGameTime } from '../utils/timezone';
 
 interface ArchivedResult {
   _id: string;
@@ -227,12 +227,7 @@ function ArchivesPage() {
             sortedDates.map(dateKey => (
               <div key={dateKey}>
                 <h3 className="text-lg font-bold text-yellow-400 mb-4">
-                  {new Date(dateKey).toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                  })}
+                  {formatGameDate(new Date(dateKey))}
                 </h3>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {groupedResults[dateKey].map(result => (
@@ -248,11 +243,7 @@ function ArchivesPage() {
                           <span className="text-white font-bold text-2xl">{result.publishedNumber}</span>
                         </div>
                         <p className="text-gray-500 text-xs">
-                          {new Date(result.publishDate).toLocaleTimeString('en-US', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            hour12: true
-                          })}
+                          {formatGameTime(new Date(result.publishDate))}
                         </p>
                       </div>
                     </div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Trash2, Edit2, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PublishResultModal from './PublishResultModal';
+import { formatGameDate } from '../utils/timezone';
 
 interface GameResult {
   _id: string;
@@ -180,7 +181,7 @@ function GameResultsPage() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString();
+    return formatGameDate(date);
   };
 
   return (

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { formatGameDate, formatGameTime } from '../utils/timezone';
 
 interface Game {
   _id: string;
@@ -295,7 +296,7 @@ function DailyResultEntry() {
                         )}
                       </td>
                       <td className="py-4 px-4 text-gray-400 text-sm">
-                        {new Date(result.createdAt).toLocaleTimeString()}
+                        {formatGameTime(new Date(result.createdAt))}
                       </td>
                       <td className="py-4 px-4 flex gap-2">
                         {editingId === result._id ? (
@@ -363,11 +364,7 @@ function DailyResultEntry() {
                         </span>
                       </td>
                       <td className="py-4 px-4 text-gray-400 text-sm">
-                        {new Date(result.resultDate).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
+                        {formatGameDate(new Date(result.resultDate))}
                       </td>
                     </tr>
                   ))}

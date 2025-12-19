@@ -218,11 +218,7 @@ function HomePage() {
                     {game.hasResult && game.result ? (
                       <>
                         <p className="text-center text-gray-500 text-xs mb-3">
-                          {game.resultDate ? new Date(game.resultDate).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          }) : 'Today'}
+                          {game.resultDate ? formatGameDate(new Date(game.resultDate)) : 'Today'}
                         </p>
                         <div className="text-center">
                           <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-lg py-3 px-6 mb-3 shadow-md">

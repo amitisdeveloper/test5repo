@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { formatGameDate, getGameDate } from '../utils/timezone';
 
 interface Game {
   _id: string;
@@ -36,7 +37,8 @@ function PublishResultModal({ isOpen, onClose, onSubmit, loading, error }: Publi
   // Set default date to today
   useEffect(() => {
     if (isOpen) {
-      const today = new Date().toISOString().split('T')[0];
+      const gameDate = getGameDate();
+      const today = gameDate.toISOString().split('T')[0];
       setFormData(prev => ({
         ...prev,
         publishDate: today
@@ -96,7 +98,8 @@ function PublishResultModal({ isOpen, onClose, onSubmit, loading, error }: Publi
       });
 
       // Reset form after successful submission
-      const today = new Date().toISOString().split('T')[0];
+      const gameDate = getGameDate();
+      const today = gameDate.toISOString().split('T')[0];
       setFormData({
         gameId: '',
         publishDate: today,
