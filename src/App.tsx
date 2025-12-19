@@ -12,7 +12,7 @@ import GameResultsPage from './components/GameResultsPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ArchivesPage from './components/ArchivesPage';
 import DailyResultEntry from './components/DailyResultEntry';
-import { getGameDate, formatGameDate } from './utils/timezone';
+import { formatGameDate } from './utils/timezone';
 
 function HomePage() {
   const [upcomingGames, setUpcomingGames] = useState<any[]>([]);
@@ -54,7 +54,7 @@ function HomePage() {
 
         setUpcomingGames(upcomingOnly);
         setTodaysResults(withResults);
-        setTodayGameDate(gamesData.todayGameDate || formatGameDate(getGameDate()));
+        setTodayGameDate(gamesData.todayGameDate || gamesData.todayDateIST || 'Today');
 
         // Set the latest result from the API
         setLatestResult(latestResultData);

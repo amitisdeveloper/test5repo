@@ -3,7 +3,17 @@ const Game = require('../models/Game');
 const Result = require('../models/Result');
 const GamePublishedResult = require('../models/GamePublishedResult');
 const eventEmitter = require('../utils/eventEmitter');
-const { getGameDate, getGameDateForTime, formatGameDate, formatGameTime } = require('../utils/timezone');
+const { 
+  getGameDate, 
+  getGameDateIST,
+  getGameDateForTime, 
+  formatGameDate, 
+  formatGameTime,
+  getGameDayStart,
+  getGameDayEnd,
+  getTodayDateIST,
+  getTodayDateStringIST
+} = require('../utils/timezone');
 const router = express.Router();
 
 router.use((req, res, next) => {
@@ -55,14 +65,10 @@ router.get('/', async (req, res) => {
       .populate('createdBy', 'username email')
       .sort({ createdAt: -1 });
 
-    // Get today's game date for result filtering
     const todayGameDate = getGameDate();
-    const todayStart = new Date(todayGameDate);
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date(todayGameDate);
-    todayEnd.setHours(23, 59, 59, 999);
+    const todayStart = getGameDayStart(todayGameDate);
+    const todayEnd = getGameDayEnd(todayGameDate);
 
-    // Fetch all today's published results from both collections
     const publishedResults = await GamePublishedResult.find({
       publishDate: {
         $gte: todayStart,
@@ -70,7 +76,6 @@ router.get('/', async (req, res) => {
       }
     }).select('gameId publishedNumber publishDate');
 
-    // Also fetch results from the Result collection for today's date
     const todayGameResults = await Result.find({
       drawDate: {
         $gte: todayStart,
@@ -127,7 +132,8 @@ router.get('/', async (req, res) => {
       primeWithResults,
       localUpcoming,
       localWithResults,
-      todayGameDate: formatGameDate(todayGameDate)
+      todayGameDate: formatGameDate(todayGameDate),
+      todayDateIST: getTodayDateStringIST()
     });
   } catch (error) {
     console.error('Get games error:', error);

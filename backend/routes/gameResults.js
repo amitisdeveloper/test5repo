@@ -2,6 +2,7 @@ const express = require('express');
 const GamePublishedResult = require('../models/GamePublishedResult');
 const Game = require('../models/Game');
 const eventEmitter = require('../utils/eventEmitter');
+const { getGameDayStart, getGameDayEnd } = require('../utils/timezone');
 const router = express.Router();
 
 // Middleware to verify JWT token
@@ -46,17 +47,13 @@ router.post('/', verifyToken, verifyAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Game not found' });
     }
 
-    // Parse the date to ensure it's valid
     const parsedDate = new Date(publishDate);
     if (isNaN(parsedDate.getTime())) {
       return res.status(400).json({ error: 'Invalid date format' });
     }
 
-    // Check if a result already exists for this game on this date
-    const dateStart = new Date(parsedDate);
-    dateStart.setHours(0, 0, 0, 0);
-    const dateEnd = new Date(parsedDate);
-    dateEnd.setHours(23, 59, 59, 999);
+    const dateStart = getGameDayStart(parsedDate);
+    const dateEnd = getGameDayEnd(parsedDate);
 
     const existingResult = await GamePublishedResult.findOne({
       gameId,
@@ -70,7 +67,6 @@ router.post('/', verifyToken, verifyAdmin, async (req, res) => {
       return res.status(409).json({ error: 'A result for this game already exists on this date' });
     }
 
-    // Create new published result
     const newResult = new GamePublishedResult({
       gameId,
       publishDate: dateStart,
@@ -118,18 +114,13 @@ router.get('/', async (req, res) => {
     const { page = 1, limit = 10, startDate, endDate, gameId } = req.query;
     const query = {};
 
-    // Add date range filter
     if (startDate || endDate) {
       query.publishDate = {};
       if (startDate) {
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
-        query.publishDate.$gte = start;
+        query.publishDate.$gte = getGameDayStart(new Date(startDate));
       }
       if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        query.publishDate.$lte = end;
+        query.publishDate.$lte = getGameDayEnd(new Date(endDate));
       }
     }
 

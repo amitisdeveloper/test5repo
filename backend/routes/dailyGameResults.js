@@ -2,6 +2,7 @@ const express = require('express');
 const DailyGameResult = require('../models/DailyGameResult');
 const Game = require('../models/Game');
 const eventEmitter = require('../utils/eventEmitter');
+const { getTodayDateIST, getGameDayStart, getGameDayEnd } = require('../utils/timezone');
 const router = express.Router();
 
 const verifyToken = async (req, res, next) => {
@@ -28,13 +29,6 @@ const verifyAdmin = (req, res, next) => {
   next();
 };
 
-const isToday = (date) => {
-  const today = new Date();
-  return date.getDate() === today.getDate() &&
-    date.getMonth() === today.getMonth() &&
-    date.getFullYear() === today.getFullYear();
-};
-
 router.post('/', verifyToken, verifyAdmin, async (req, res) => {
   try {
     const { gameId, resultNumber } = req.body;
@@ -48,12 +42,9 @@ router.post('/', verifyToken, verifyAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Game not found' });
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
     const newResult = new DailyGameResult({
       gameId,
-      resultDate: today,
+      resultDate: getTodayDateIST(),
       resultNumber: resultNumber.toString(),
       createdBy: req.user.userId
     });
@@ -85,14 +76,10 @@ router.get('/', verifyToken, verifyAdmin, async (req, res) => {
     if (startDate || endDate) {
       query.resultDate = {};
       if (startDate) {
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
-        query.resultDate.$gte = start;
+        query.resultDate.$gte = getGameDayStart(new Date(startDate));
       }
       if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        query.resultDate.$lte = end;
+        query.resultDate.$lte = getGameDayEnd(new Date(endDate));
       }
     }
 
@@ -117,12 +104,9 @@ router.get('/today/:gameId', verifyToken, verifyAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Game not found' });
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
     const results = await DailyGameResult.find({
       gameId,
-      resultDate: today
+      resultDate: getTodayDateIST()
     })
       .populate('gameId', 'name nickName gameType')
       .populate('createdBy', 'username')
@@ -149,8 +133,7 @@ router.put('/:id', verifyToken, verifyAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Result not found' });
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getTodayDateIST();
 
     if (result.resultDate.getTime() !== today.getTime()) {
       return res.status(403).json({ error: 'Can only edit today\'s results' });
@@ -180,8 +163,7 @@ router.delete('/:id', verifyToken, verifyAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Result not found' });
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getTodayDateIST();
 
     if (result.resultDate.getTime() !== today.getTime()) {
       return res.status(403).json({ error: 'Can only delete today\'s results' });
