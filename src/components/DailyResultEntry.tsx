@@ -26,6 +26,7 @@ function DailyResultEntry() {
   const [success, setSuccess] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingNumber, setEditingNumber] = useState('');
+  const [todayDateIST_YYYYMMDD, setTodayDateIST_YYYYMMDD] = useState('');
 
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
@@ -52,7 +53,9 @@ function DailyResultEntry() {
       if (!response.ok) throw new Error('Failed to fetch games');
 
       const data = await response.json();
-      setGames(data);
+      const gamesArray = data.localUpcoming && data.localWithResults ? [...data.localUpcoming, ...data.localWithResults] : (Array.isArray(data) ? data : []);
+      setGames(gamesArray);
+      setTodayDateIST_YYYYMMDD(data.todayDateIST_YYYYMMDD || '');
     } catch (err) {
       console.error('Error fetching games:', err);
       setError('Failed to load games');
@@ -174,11 +177,9 @@ function DailyResultEntry() {
   };
 
   const isToday = (dateString: string) => {
-    const date = new Date(dateString);
-    const today = new Date();
-    return date.getDate() === today.getDate() &&
-      date.getMonth() === today.getMonth() &&
-      date.getFullYear() === today.getFullYear();
+    if (!todayDateIST_YYYYMMDD) return false;
+    const resultDateIST = dateString ? dateString.split('T')[0] : '';
+    return resultDateIST === todayDateIST_YYYYMMDD;
   };
 
   const todayResults = allResults.filter(r => isToday(r.resultDate));
@@ -364,7 +365,7 @@ function DailyResultEntry() {
                         </span>
                       </td>
                       <td className="py-4 px-4 text-gray-400 text-sm">
-                        {formatGameDate(new Date(result.resultDate))}
+                        {formatGameDate(result.resultDate)}
                       </td>
                     </tr>
                   ))}

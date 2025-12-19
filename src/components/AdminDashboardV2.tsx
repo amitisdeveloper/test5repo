@@ -166,7 +166,7 @@ function AdminDashboardV2() {
                   <tr key={`${group.gameName}-${group.date}`} className="border-b border-yellow-600/20 hover:bg-amber-950/20">
                     <td className="py-4 px-4 font-semibold text-white">{group.gameName}</td>
                     <td className="py-4 px-4 text-gray-400">
-                      {formatGameDate(new Date(group.date))}
+                      {formatGameDate(group.date)}
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex flex-wrap gap-2">

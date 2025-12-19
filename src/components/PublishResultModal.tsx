@@ -20,9 +20,10 @@ interface PublishResultModalProps {
   }) => Promise<void>;
   loading?: boolean;
   error?: string;
+  todayDateIST_YYYYMMDD?: string;
 }
 
-function PublishResultModal({ isOpen, onClose, onSubmit, loading, error }: PublishResultModalProps) {
+function PublishResultModal({ isOpen, onClose, onSubmit, loading, error, todayDateIST_YYYYMMDD }: PublishResultModalProps) {
   const [games, setGames] = useState<Game[]>([]);
   const [loadingGames, setLoadingGames] = useState(false);
   const [formError, setFormError] = useState('');
@@ -36,7 +37,7 @@ function PublishResultModal({ isOpen, onClose, onSubmit, loading, error }: Publi
 
   useEffect(() => {
     if (isOpen) {
-      const today = new Date().toISOString().split('T')[0];
+      const today = todayDateIST_YYYYMMDD || '';
       setFormData(prev => ({
         ...prev,
         publishDate: today
@@ -44,7 +45,7 @@ function PublishResultModal({ isOpen, onClose, onSubmit, loading, error }: Publi
       fetchGames();
     }
     setFormError('');
-  }, [isOpen]);
+  }, [isOpen, todayDateIST_YYYYMMDD]);
 
   const fetchGames = async () => {
     try {
@@ -95,7 +96,7 @@ function PublishResultModal({ isOpen, onClose, onSubmit, loading, error }: Publi
         publishedNumber: formData.publishedNumber
       });
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = todayDateIST_YYYYMMDD || '';
       setFormData({
         gameId: '',
         publishDate: today,

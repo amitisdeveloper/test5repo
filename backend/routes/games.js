@@ -12,7 +12,8 @@ const {
   getGameDayStart,
   getGameDayEnd,
   getTodayDateIST,
-  getTodayDateStringIST
+  getTodayDateStringIST,
+  getTodayDateStringIST_YYYYMMDD
 } = require('../utils/timezone');
 const router = express.Router();
 
@@ -133,7 +134,8 @@ router.get('/', async (req, res) => {
       localUpcoming,
       localWithResults,
       todayGameDate: formatGameDate(todayGameDate),
-      todayDateIST: getTodayDateStringIST()
+      todayDateIST: getTodayDateStringIST(),
+      todayDateIST_YYYYMMDD: getTodayDateStringIST_YYYYMMDD()
     });
   } catch (error) {
     console.error('Get games error:', error);

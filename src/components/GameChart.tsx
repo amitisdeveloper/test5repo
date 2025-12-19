@@ -27,12 +27,35 @@ interface GameChartProps {
 function GameChart({ gameName, onClose }: GameChartProps) {
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(0);
+  const [selectedYear, setSelectedYear] = useState(0);
+  const [istMonth, setIstMonth] = useState(0);
+  const [istYear, setIstYear] = useState(0);
 
   useEffect(() => {
+    fetchISTDate();
     fetchResults();
   }, [gameName]);
+
+  const fetchISTDate = async () => {
+    try {
+      const response = await fetch('/api/games');
+      if (response.ok) {
+        const data = await response.json();
+        const todayIST = data.todayDateIST_YYYYMMDD || new Date().toISOString().split('T')[0];
+        const [year, month] = todayIST.split('-').slice(0, 2).map(Number);
+        setIstMonth(month - 1);
+        setIstYear(year);
+        setSelectedMonth(month - 1);
+        setSelectedYear(year);
+      }
+    } catch (error) {
+      console.error('Error fetching IST date:', error);
+      const today = new Date();
+      setSelectedMonth(today.getMonth());
+      setSelectedYear(today.getFullYear());
+    }
+  };
 
   const fetchResults = async () => {
     try {
@@ -79,6 +102,11 @@ function GameChart({ gameName, onClose }: GameChartProps) {
     ],
   };
 
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
   const options = {
     responsive: true,
     plugins: {
@@ -87,7 +115,7 @@ function GameChart({ gameName, onClose }: GameChartProps) {
       },
       title: {
         display: true,
-        text: `${gameName} Results Chart - ${new Date(selectedYear, selectedMonth).toLocaleString('default', { month: 'long' })} ${selectedYear}`,
+        text: `${gameName} Results Chart - ${monthNames[selectedMonth]} ${selectedYear}`,
       },
     },
     scales: {
@@ -97,12 +125,8 @@ function GameChart({ gameName, onClose }: GameChartProps) {
     },
   };
 
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-
-  const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
+  const months = monthNames;
+  const years = Array.from({ length: 5 }, (_, i) => istYear - i);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

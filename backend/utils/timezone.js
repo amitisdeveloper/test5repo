@@ -108,6 +108,14 @@ function getTodayDateStringIST() {
   return getNowIST().format('DD-MMM-YYYY');
 }
 
+function getTodayDateStringIST_YYYYMMDD() {
+  return getNowIST().format('YYYY-MM-DD');
+}
+
+function getGameDateString_YYYYMMDD(date) {
+  return dayjs(date).tz(IST_TIMEZONE).format('YYYY-MM-DD');
+}
+
 module.exports = {
   getNowIST,
   getGameDate,
@@ -123,6 +131,8 @@ module.exports = {
   getGameDateRange,
   getTodayDateIST,
   getTodayDateStringIST,
+  getTodayDateStringIST_YYYYMMDD,
+  getGameDateString_YYYYMMDD,
   IST_TIMEZONE,
   GAME_DAY_START,
   GAME_DAY_RESET

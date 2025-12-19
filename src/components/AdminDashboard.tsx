@@ -690,7 +690,7 @@ function AdminDashboard() {
                   <div className="mt-2 p-2 bg-green-900/20 border border-green-600/30 rounded">
                     <p className="text-green-400 font-semibold">Latest Result: {game.latestResult.result}</p>
                     <p className="text-gray-400 text-xs">
-                      {formatGameDate(new Date(game.latestResult.date))} {game.latestResult.time}
+                      {formatGameDate(game.latestResult.date)} {game.latestResult.time}
                     </p>
                   </div>
                 )}
@@ -743,7 +743,7 @@ function AdminDashboard() {
                             <span className="text-green-400 font-bold">{game.latestResult.result}</span>
                             <br />
                             <span className="text-gray-500 text-xs">
-                              {formatGameDate(new Date(game.latestResult.date))}
+                              {formatGameDate(game.latestResult.date)}
                             </span>
                           </div>
                         ) : (

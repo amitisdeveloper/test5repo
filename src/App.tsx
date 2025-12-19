@@ -22,6 +22,7 @@ function HomePage() {
   const [selectedGameForChart, setSelectedGameForChart] = useState<string | null>(null);
   const [latestResult, setLatestResult] = useState<any>(null);
   const [todayGameDate, setTodayGameDate] = useState<string>('');
+  const [todayDateIST_YYYYMMDD, setTodayDateIST_YYYYMMDD] = useState<string>('');
   const isFirstLoad = useRef(true);
 
   useEffect(() => {
@@ -55,6 +56,7 @@ function HomePage() {
         setUpcomingGames(upcomingOnly);
         setTodaysResults(withResults);
         setTodayGameDate(gamesData.todayGameDate || gamesData.todayDateIST || 'Today');
+        setTodayDateIST_YYYYMMDD(gamesData.todayDateIST_YYYYMMDD || '');
 
         // Set the latest result from the API
         setLatestResult(latestResultData);
@@ -218,7 +220,7 @@ function HomePage() {
                     {game.hasResult && game.result ? (
                       <>
                         <p className="text-center text-gray-500 text-xs mb-3">
-                          {game.resultDate ? formatGameDate(new Date(game.resultDate)) : 'Today'}
+                          {game.resultDate ? formatGameDate(game.resultDate) : 'Today'}
                         </p>
                         <div className="text-center">
                           <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-lg py-3 px-6 mb-3 shadow-md">

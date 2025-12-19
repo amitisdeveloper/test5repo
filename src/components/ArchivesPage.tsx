@@ -227,7 +227,7 @@ function ArchivesPage() {
             sortedDates.map(dateKey => (
               <div key={dateKey}>
                 <h3 className="text-lg font-bold text-yellow-400 mb-4">
-                  {formatGameDate(new Date(dateKey))}
+                  {formatGameDate(dateKey)}
                 </h3>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {groupedResults[dateKey].map(result => (

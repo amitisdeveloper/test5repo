@@ -37,6 +37,7 @@ function GameResultsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNumber, setEditNumber] = useState('');
   const [editError, setEditError] = useState('');
+  const [todayDateIST_YYYYMMDD, setTodayDateIST_YYYYMMDD] = useState('');
 
   // Filter states
   const [startDate, setStartDate] = useState('');
@@ -80,7 +81,20 @@ function GameResultsPage() {
 
   useEffect(() => {
     fetchResults(1);
+    fetchTodayDate();
   }, []);
+
+  const fetchTodayDate = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/games`);
+      if (response.ok) {
+        const data = await response.json();
+        setTodayDateIST_YYYYMMDD(data.todayDateIST_YYYYMMDD || '');
+      }
+    } catch (err) {
+      console.error('Failed to fetch today date:', err);
+    }
+  };
 
   const handlePublishResult = async (data: {
     gameId: string;
@@ -392,6 +406,7 @@ function GameResultsPage() {
           isOpen={modalOpen}
           onClose={() => setModalOpen(false)}
           onSubmit={handlePublishResult}
+          todayDateIST_YYYYMMDD={todayDateIST_YYYYMMDD}
         />
       </main>
     </div>
