@@ -10,7 +10,10 @@ const GAME_DAY_START = 14;
 const GAME_DAY_RESET = 6;
 
 function getNowIST() {
-  return dayjs().tz(IST_TIMEZONE);
+  // Use dayjs.utc() as base to ensure consistency across different server local times
+  const now = dayjs.utc().tz(IST_TIMEZONE);
+  console.log(`[Timezone] getNowIST: ${now.format('YYYY-MM-DD HH:mm:ss')} IST (UTC: ${dayjs.utc().format()})`);
+  return now;
 }
 
 /**
@@ -26,13 +29,16 @@ function getGameDate() {
   const now = getNowIST();
   const hour = now.hour();
 
+  let gameDate;
   if (hour < GAME_DAY_RESET) {
     // 00:00-05:59 → previous calendar day
-    return now.subtract(1, 'day').startOf('day').toDate();
+    gameDate = now.subtract(1, 'day').startOf('day');
   } else {
     // 06:00+ → current calendar day
-    return now.startOf('day').toDate();
+    gameDate = now.startOf('day');
   }
+  console.log(`[Timezone] getGameDate: ${gameDate.format('YYYY-MM-DD')} (IST Hour: ${hour})`);
+  return gameDate.toDate();
 }
 
 /**

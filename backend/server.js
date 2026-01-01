@@ -3,6 +3,9 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 
+// Set Indian timezone as default for all environments
+process.env.TZ = 'Asia/Kolkata';
+
 dotenv.config();
 
 const app = express();

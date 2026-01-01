@@ -24,9 +24,13 @@ function LatestUpdates({ latestResult, isLoading = false }: LatestUpdatesProps) 
 
   useEffect(() => {
     // Animate in when component mounts or result changes
-    setIsVisible(false);
-    const timer = setTimeout(() => setIsVisible(true), 100);
-    return () => clearTimeout(timer);
+    if (latestResult) {
+      setIsVisible(false);
+      const timer = setTimeout(() => setIsVisible(true), 100);
+      return () => clearTimeout(timer);
+    } else {
+      setIsVisible(true); // Default to visible for empty state
+    }
   }, [latestResult]);
 
   useEffect(() => {

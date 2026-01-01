@@ -71,10 +71,14 @@ router.get('/', async (req, res) => {
       .populate('createdBy', 'username email')
       .sort({ createdAt: -1 });
 
+    console.log(`[Games API] Found ${games.length} active games`);
+
     // Use single IST day boundary for all filtering
     const todayGameDate = getCurrentGameDayIST();
     const todayStart = startOfDayIST();
     const todayEnd = endOfDayIST();
+
+    console.log(`[Games API] Filtering results between: ${todayStart.toISOString()} and ${todayEnd.toISOString()}`);
 
     const publishedResults = await GamePublishedResult.find({
       publishDate: {
@@ -82,6 +86,8 @@ router.get('/', async (req, res) => {
         $lte: todayEnd
       }
     }).select('gameId publishedNumber publishDate');
+
+    console.log(`[Games API] Found ${publishedResults.length} published results for today`);
 
     const todayGameResults = await Result.find({
       drawDate: {
@@ -238,13 +244,14 @@ router.get('/latest-result', async (req, res) => {
       .sort({ createdAt: -1 })
       .populate('gameId', 'nickName resultTime');
 
-    if (!latestResult) {
+    if (!latestResult || !latestResult.gameId) {
+      console.log('[Latest Result] No result found or game associated with result was deleted');
       return res.json(null);
     }
 
     res.json({
       result: latestResult.publishedNumber,
-      name: latestResult.gameId.nickName,
+      name: latestResult.gameId.nickName || 'Unknown Game',
       date: latestResult.publishDate,
       time: latestResult.gameId.resultTime || '02:00 PM',
       formattedDate: formatGameDate(latestResult.publishDate),

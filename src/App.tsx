@@ -154,6 +154,22 @@ function HomePage() {
         </div>
       </header>
 
+      {/* Error Message */}
+      {error && (
+        <div className="container mx-auto px-4 mt-4">
+          <div className="bg-red-900/40 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg flex items-center gap-3">
+            <RefreshCw className="w-5 h-5 animate-spin-slow" />
+            <p>{error}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="ml-auto bg-red-500/20 hover:bg-red-500/40 px-3 py-1 rounded text-xs transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Latest Updates Section */}
       <div className="mt-8">
         <LatestUpdates
