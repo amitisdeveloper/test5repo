@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { formatGameDate } from '../utils/timezone';
+import TimePicker from './TimePicker';
 
 interface Game {
   _id: string;
   nickName: string;
-  gameType: 'local' | 'prime';
   isActive: boolean;
+  resultTime?: string | null;
+  resultDate?: Date | null;
   latestResult?: {
     result: string;
     date: string;
@@ -28,7 +30,6 @@ interface ApiResponse {
   games: Game[];
   pagination: PaginationInfo;
   filters: {
-    gameType?: string;
     startDate?: string;
     endDate?: string;
     search?: string;
@@ -47,36 +48,49 @@ interface GameModalProps {
 function GameModal({ isOpen, onClose, game, mode, onSubmit }: GameModalProps) {
   const [formData, setFormData] = useState({
     nickName: '',
-    gameType: 'local' as 'local' | 'prime',
     isActive: true,
-    result: ''
+    result: '',
+    resultTime: '',
+    resultDate: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [validationError, setValidationError] = useState('');
 
   useEffect(() => {
     if (game && (mode === 'edit' || mode === 'publish')) {
       setFormData({
         nickName: game.nickName || '',
-        gameType: game.gameType || 'local',
         isActive: game.isActive,
-        result: game.latestResult?.result || ''
+        result: game.latestResult?.result || '',
+        resultTime: game.resultTime || '',
+        resultDate: game.resultDate ? new Date(game.resultDate).toISOString().split('T')[0] : ''
       });
     } else if (mode === 'create') {
       setFormData({
         nickName: '',
-        gameType: 'local',
         isActive: true,
-        result: ''
+        result: '',
+        resultTime: '',
+        resultDate: ''
       });
     }
     setError('');
+    setValidationError('');
   }, [game, mode, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setValidationError('');
+
+    // Validate Result Time is selected
+    if (!formData.resultTime) {
+      setValidationError('Result Time is required');
+      setLoading(false);
+      return;
+    }
 
     try {
       if (mode === 'publish') {
@@ -157,26 +171,37 @@ function GameModal({ isOpen, onClose, game, mode, onSubmit }: GameModalProps) {
                 />
               </div>
 
-              {mode === 'edit' && (
-                <>
-                  {/* Game Type */}
-                  <div>
-                    <label className="block text-sm font-medium text-yellow-400 mb-2">
-                      Game Type *
-                    </label>
-                    <select
-                      value={formData.gameType}
-                      onChange={(e) => setFormData({ ...formData, gameType: e.target.value as 'local' | 'prime' })}
-                      className="w-full px-4 py-3 bg-neutral-800 border border-yellow-600/30 rounded-lg text-white focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
-                      required
-                      disabled={mode === 'edit' && !!game?.latestResult}
-                    >
-                      <option value="local">Local</option>
-                      <option value="prime">Prime</option>
-                    </select>
-                  </div>
-                </>
-              )}
+
+              {/* Result Time */}
+              <div>
+                <label className="block text-sm font-medium text-yellow-400 mb-2">
+                  Result Time *
+                </label>
+                <TimePicker
+                  value={formData.resultTime}
+                  onChange={(time) => setFormData({ ...formData, resultTime: time })}
+                  placeholder="Select Result Time"
+                />
+                <p className="text-gray-400 text-sm mt-1">
+                  Choose the time when this game's result will be announced
+                </p>
+              </div>
+
+              {/* Result Date */}
+              <div>
+                <label className="block text-sm font-medium text-yellow-400 mb-2">
+                  Result Date
+                </label>
+                <input
+                  type="date"
+                  value={formData.resultDate}
+                  onChange={(e) => setFormData({ ...formData, resultDate: e.target.value })}
+                  className="w-full px-4 py-3 bg-neutral-800 border border-yellow-600/30 rounded-lg text-white focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400"
+                />
+                <p className="text-gray-400 text-sm mt-1">
+                  Choose the date when this game's result will be announced (leave empty for same day)
+                </p>
+              </div>
 
               {/* Active Status */}
               <div className="flex items-center space-x-3">
@@ -210,6 +235,13 @@ function GameModal({ isOpen, onClose, game, mode, onSubmit }: GameModalProps) {
               <p className="text-gray-400 text-sm mt-1">
                 Publishing result for: <span className="text-yellow-400 font-medium">{game?.nickName}</span>
               </p>
+            </div>
+          )}
+
+          {/* Validation Error */}
+          {validationError && (
+            <div className="text-red-400 text-sm bg-red-900/20 border border-red-600/30 rounded-lg p-3">
+              {validationError}
             </div>
           )}
 
@@ -250,11 +282,9 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [showEditTable, setShowEditTable] = useState(false);
 
   // Filter states
   const [filters, setFilters] = useState({
-    gameType: '',
     startDate: '',
     endDate: '',
     search: ''
@@ -398,7 +428,7 @@ function AdminDashboard() {
   };
 
   const handleDeleteGame = async (gameId: string) => {
-    if (!window.confirm('Are you sure you want to delete this game?')) {
+    if (!window.confirm('Are you sure you want to delete this game? This will also delete all published results for this game.')) {
       return;
     }
 
@@ -430,7 +460,7 @@ function AdminDashboard() {
       const responseData = await response.json();
       console.log('Delete response data:', responseData);
 
-      setSuccess('Game deleted successfully!');
+      setSuccess('Game and associated results deleted successfully!');
       
       console.log('Refetching games from page:', pagination?.currentPage || 1);
       await fetchGames(pagination?.currentPage || 1);
@@ -478,7 +508,6 @@ function AdminDashboard() {
 
   const handleClearFilters = () => {
     setFilters({
-      gameType: '',
       startDate: '',
       endDate: '',
       search: ''
@@ -548,18 +577,6 @@ function AdminDashboard() {
               Published Results
             </button>
             <button
-              onClick={() => navigate('/admin/daily-results')}
-              className="bg-gradient-to-r from-orange-600 to-orange-700 text-white px-4 py-2 rounded-lg hover:from-orange-700 hover:to-orange-800 transition-all duration-300"
-            >
-              Daily Results
-            </button>
-            <button
-              onClick={() => setShowEditTable(!showEditTable)}
-              className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all duration-300"
-            >
-              {showEditTable ? 'Hide Edit Table' : 'Show Edit Table'}
-            </button>
-            <button
               onClick={handleLogout}
               className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
             >
@@ -589,19 +606,7 @@ function AdminDashboard() {
         {/* Enhanced Filters */}
         <div className="bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 rounded-lg p-6 border-2 border-yellow-600/40 mb-6">
           <h3 className="text-lg font-semibold text-yellow-400 mb-4">Filters & Search</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-yellow-400 mb-2">Game Type</label>
-              <select
-                value={filters.gameType}
-                onChange={(e) => handleFilterChange({ gameType: e.target.value })}
-                className="w-full px-3 py-2 bg-neutral-800 border border-yellow-600/30 rounded-lg text-white focus:outline-none focus:border-yellow-400"
-              >
-                <option value="">All Types</option>
-                <option value="prime">Prime</option>
-                <option value="local">Local</option>
-              </select>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-yellow-400 mb-2">Search</label>
               <input
@@ -677,17 +682,27 @@ function AdminDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {Array.isArray(games) && games.map(game => (
             <div key={game._id} className="bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 rounded-lg p-6 border-2 border-yellow-600/40">
-              <div className="flex justify-between items-start mb-4">
-                <div>
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex-1">
                   <h3 className="text-lg font-bold text-yellow-400">{game.nickName}</h3>
-                  <p className="text-gray-400 text-sm">{game.gameType.toUpperCase()}</p>
                 </div>
                 {getStatusBadge(game)}
               </div>
 
-              <div className="text-sm text-gray-300 mb-4">
+              {/* Result Time Display - Prominent */}
+              {game.resultTime && (
+                <div className="mb-3 p-3 bg-gradient-to-r from-blue-900/40 to-blue-800/40 border border-blue-500/50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                    <span className="text-blue-300 text-sm font-medium">Result Time</span>
+                  </div>
+                  <p className="text-white font-bold text-lg mt-1">{game.resultTime}</p>
+                </div>
+              )}
+
+              <div className="text-sm text-gray-300">
                 {game.latestResult && (
-                  <div className="mt-2 p-2 bg-green-900/20 border border-green-600/30 rounded">
+                  <div className="p-2 bg-green-900/20 border border-green-600/30 rounded">
                     <p className="text-green-400 font-semibold">Latest Result: {game.latestResult.result}</p>
                     <p className="text-gray-400 text-xs">
                       {formatGameDate(game.latestResult.date)} {game.latestResult.time}
@@ -714,65 +729,6 @@ function AdminDashboard() {
           ))}
         </div>
 
-        {/* Edit Table */}
-        {showEditTable && (
-          <div className="bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 rounded-lg p-6 border-2 border-yellow-600/40">
-            <h3 className="text-lg font-bold text-yellow-400 mb-4">Edit Games Table</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-gray-300">
-                <thead>
-                  <tr className="border-b border-yellow-600/30">
-                    <th className="text-left py-2 px-4 text-yellow-400">Game Name</th>
-                    <th className="text-left py-2 px-4 text-yellow-400">Type</th>
-                    <th className="text-left py-2 px-4 text-yellow-400">Status</th>
-                    <th className="text-left py-2 px-4 text-yellow-400">Latest Result</th>
-                    <th className="text-left py-2 px-4 text-yellow-400">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Array.isArray(games) && games.map(game => (
-                    <tr key={game._id} className="border-b border-yellow-600/20 hover:bg-amber-950/20">
-                      <td className="py-3 px-4 font-semibold text-white">{game.nickName}</td>
-                      <td className="py-3 px-4 text-gray-400">{game.gameType.toUpperCase()}</td>
-                      <td className="py-3 px-4">
-                        {getStatusBadge(game)}
-                      </td>
-                      <td className="py-3 px-4">
-                        {game.latestResult ? (
-                          <div>
-                            <span className="text-green-400 font-bold">{game.latestResult.result}</span>
-                            <br />
-                            <span className="text-gray-500 text-xs">
-                              {formatGameDate(game.latestResult.date)}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-gray-500">No result</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => openModal('edit', game)}
-                            className="bg-gradient-to-r from-yellow-600 to-amber-600 text-white px-3 py-1 rounded text-xs hover:from-yellow-700 hover:to-amber-700 transition-all duration-300"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeleteGame(game._id)}
-                            className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 py-1 rounded text-xs hover:from-red-700 hover:to-red-800 transition-all duration-300"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
 
         {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (

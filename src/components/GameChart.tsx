@@ -60,11 +60,30 @@ function GameChart({ gameName, onClose }: GameChartProps) {
   const fetchResults = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/results');
-      const data = await response.json();
-      setResults(data.filter((r: any) => r.name === gameName));
+      // Fetch all published results and filter by game name on client side
+      const response = await fetch('/api/admin/game-results?limit=1000'); // Get more results
+      if (response.ok) {
+        const data = await response.json();
+        // Filter by game name and transform the data
+        const filteredResults = data.results.filter((r: any) => r.gameId.nickName === gameName);
+        const transformedResults = filteredResults.map((r: any) => ({
+          result: r.publishedNumber,
+          name: r.gameId.nickName,
+          time: r.gameId.resultTime || '02:00 PM',
+          createdAt: r.publishDate,
+          // For Disawar, show result on previous date
+          displayDate: r.gameId.nickName === 'Disawar' ?
+            new Date(new Date(r.publishDate).getTime() - 24 * 60 * 60 * 1000).toISOString() :
+            r.publishDate
+        }));
+        setResults(transformedResults);
+      } else {
+        console.error('Failed to fetch published results');
+        setResults([]);
+      }
     } catch (error) {
       console.error('Error fetching results:', error);
+      setResults([]);
     } finally {
       setLoading(false);
     }
@@ -72,7 +91,7 @@ function GameChart({ gameName, onClose }: GameChartProps) {
 
   // Filter results for selected month and year
   const filteredResults = results.filter(result => {
-    const date = new Date(result.createdAt);
+    const date = new Date(result.displayDate || result.createdAt);
     return date.getMonth() === selectedMonth && date.getFullYear() === selectedYear;
   });
 
@@ -83,7 +102,7 @@ function GameChart({ gameName, onClose }: GameChartProps) {
   // Get results by day
   const resultsByDay = daysArray.map(day => {
     const dayResults = filteredResults.filter(result => {
-      const date = new Date(result.createdAt);
+      const date = new Date(result.displayDate || result.createdAt);
       return date.getDate() === day;
     });
     return dayResults.length > 0 ? dayResults[0] : null;

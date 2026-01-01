@@ -34,22 +34,35 @@ export default async function handler(req, res) {
         .eq('gameType', 'local')
         .eq('isActive', true);
 
+      // Transform snake_case to camelCase for frontend compatibility
+      const transformGame = (game) => ({
+        ...game,
+        nickName: game.nick_name,
+        gameType: game.game_type,
+        isActive: game.is_active,
+        resultTime: game.result_time || null
+      });
+
+      const transformedPrimeGames = (primeGames || []).map(transformGame);
+      const transformedLocalGames = (localGames || []).map(transformGame);
+
       if (primeError || localError) {
         throw new Error('Error fetching games');
       }
 
       res.json({
-        prime: primeGames,
-        local: localGames
+        prime: transformedPrimeGames,
+        local: transformedLocalGames
       });
     } else if (req.method === 'POST') {
       // POST /api/games - Create a new game (authenticated)
       await auth(req);
       // Transform camelCase to match database schema
       const transformedBody = {
-        nickName: req.body.nickName,
-        isActive: req.body.isActive,
-        gameType: req.body.gameType
+        nick_name: req.body.nickName,
+        is_active: req.body.isActive,
+        game_type: req.body.gameType,
+        result_time: req.body.resultTime
       };
 
       const { data, error } = await supabase

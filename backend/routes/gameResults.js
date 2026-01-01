@@ -76,7 +76,7 @@ router.post('/', verifyToken, verifyAdmin, async (req, res) => {
 
     await newResult.save();
     await newResult.populate([
-      { path: 'gameId', select: 'name nickName gameType' },
+      { path: 'gameId', select: 'name nickName' },
       { path: 'createdBy', select: 'username' }
     ]);
 
@@ -135,7 +135,7 @@ router.get('/', async (req, res) => {
 
     // Fetch results
     const results = await GamePublishedResult.find(query)
-      .populate('gameId', 'name nickName gameType')
+      .populate('gameId', 'name nickName resultTime')
       .populate('createdBy', 'username')
       .sort({ publishDate: -1 })
       .limit(limitNum)
@@ -167,7 +167,7 @@ router.get('/:id', verifyToken, verifyAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const result = await GamePublishedResult.findById(id)
-      .populate('gameId', 'name nickName gameType')
+      .populate('gameId', 'name nickName')
       .populate('createdBy', 'username');
 
     if (!result) {
@@ -202,7 +202,7 @@ router.put('/:id', verifyToken, verifyAdmin, async (req, res) => {
     await result.save();
 
     await result.populate([
-      { path: 'gameId', select: 'name nickName gameType' },
+      { path: 'gameId', select: 'name nickName' },
       { path: 'createdBy', select: 'username' }
     ]);
 

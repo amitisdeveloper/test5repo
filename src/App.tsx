@@ -11,7 +11,7 @@ import GameChart from './components/GameChart';
 import GameResultsPage from './components/GameResultsPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ArchivesPage from './components/ArchivesPage';
-import DailyResultEntry from './components/DailyResultEntry';
+
 import { formatGameDate } from './utils/timezone';
 
 function HomePage() {
@@ -62,17 +62,9 @@ function HomePage() {
         console.log('todaysResults count:', gamesData.todaysResults?.length || 0);
         console.log('🕒 =========================');
 
-        // Combine local games with their result status
-        const allLocalGames = gamesData.localUpcoming || [];
-        const localWithResults = gamesData.localWithResults || [];
-        const allGames = [...allLocalGames, ...localWithResults];
-
-        // Separate by result status
-        const upcomingOnly = allGames.filter((g: any) => !g.hasResult);
-        const withResults = allGames.filter((g: any) => g.hasResult);
-
-        setUpcomingGames(upcomingOnly);
-        setTodaysResults(withResults);
+        // Use the categorized games from the API response
+        setUpcomingGames(gamesData.upcomingGames || []);
+        setTodaysResults(gamesData.gamesWithResults || []);
         setTodayGameDate(gamesData.todayGameDate || gamesData.todayDateIST || 'Today');
         setTodayDateIST_YYYYMMDD(gamesData.todayDateIST_YYYYMMDD || '');
 
@@ -204,6 +196,9 @@ function HomePage() {
                 {upcomingGames.map((game: any, index: number) => (
                   <div key={index} className="bg-neutral-900/50 rounded-lg p-3 border border-yellow-600/20 hover:border-yellow-500/50 transition-colors">
                     <h4 className="text-white font-semibold text-sm">{game.nickName}</h4>
+                    {game.resultTime && (
+                      <p className="text-blue-400 text-xs mt-1">Result Time: {game.resultTime}</p>
+                    )}
                   </div>
                 ))}
                 {upcomingGames.length === 0 && (
@@ -235,6 +230,11 @@ function HomePage() {
                     <h4 className="text-yellow-400 font-bold text-center mb-1 text-sm">
                       {game.nickName}
                     </h4>
+                    {game.resultTime && (
+                      <p className="text-blue-400 text-xs text-center mb-2">
+                        Result Time: {game.resultTime}
+                      </p>
+                    )}
                     {game.hasResult && game.result ? (
                       <>
                         <p className="text-center text-gray-500 text-xs mb-3">
@@ -323,7 +323,7 @@ function App() {
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
         <Route path="/admin/dashboard-v2" element={<ProtectedRoute><AdminDashboardV2 /></ProtectedRoute>} />
-        <Route path="/admin/daily-results" element={<ProtectedRoute><DailyResultEntry /></ProtectedRoute>} />
+
         <Route path="/admin/create-game" element={<ProtectedRoute><CreateGame /></ProtectedRoute>} />
         <Route path="/admin/edit-game/:gameId" element={<ProtectedRoute><CreateGame /></ProtectedRoute>} />
         <Route path="/admin/game-result/:gameId" element={<ProtectedRoute><GameResult /></ProtectedRoute>} />

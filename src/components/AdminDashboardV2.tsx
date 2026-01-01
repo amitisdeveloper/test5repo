@@ -122,12 +122,7 @@ function AdminDashboardV2() {
             >
               Create Game
             </button>
-            <button
-              onClick={() => navigate('/admin/daily-results')}
-              className="bg-gradient-to-r from-orange-600 to-orange-700 text-white px-4 py-2 rounded-lg hover:from-orange-700 hover:to-orange-800 transition-all duration-300"
-            >
-              Daily Results
-            </button>
+
             <button
               onClick={handleLogout}
               className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"

@@ -8,7 +8,6 @@ interface ArchivedResult {
   gameId: {
     _id: string;
     nickName: string;
-    gameType: string;
   };
   publishedNumber: string;
   publishDate: string;

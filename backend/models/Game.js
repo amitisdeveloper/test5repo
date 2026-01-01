@@ -21,11 +21,6 @@ const gameSchema = new mongoose.Schema({
     enum: ['active', 'inactive', 'completed', 'suspended'],
     default: 'active'
   },
-  gameType: {
-    type: String,
-    enum: ['lottery', 'draw', 'raffle', 'other', 'prime', 'local'],
-    default: 'lottery'
-  },
   drawTime: {
     type: Date
   },
@@ -36,6 +31,15 @@ const gameSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  resultTime: {
+    type: String,
+    trim: true,
+    maxlength: 8 // Format: "hh:mm AM/PM"
+  },
+  resultDate: {
+    type: Date,
+    default: null
   },
   settings: {
     minNumber: { type: Number, default: 1 },
@@ -50,5 +54,21 @@ const gameSchema = new mongoose.Schema({
 // Index for efficient queries
 gameSchema.index({ status: 1, isActive: 1 });
 gameSchema.index({ createdBy: 1 });
+
+// Cascade delete - delete associated results when game is deleted
+gameSchema.pre('deleteOne', { document: true }, async function(next) {
+  const Result = require('./Result');
+  await Result.deleteMany({ gameId: this._id });
+  next();
+});
+
+gameSchema.pre('findOneAndDelete', async function(next) {
+  const Result = require('./Result');
+  const doc = await this.model.findOne(this.getFilter());
+  if (doc) {
+    await Result.deleteMany({ gameId: doc._id });
+  }
+  next();
+});
 
 module.exports = mongoose.model('Game', gameSchema);

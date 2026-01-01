@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import TimePicker from './TimePicker';
 
 function CreateGame() {
   const { gameId } = useParams<{ gameId: string }>();
@@ -8,8 +9,9 @@ function CreateGame() {
 
   const [formData, setFormData] = useState({
     nickName: '',
-    gameType: 'prime',
-    isActive: true
+    isActive: true,
+    resultTime: '',
+    resultDate: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -40,8 +42,9 @@ function CreateGame() {
       if (game) {
         setFormData({
           nickName: game.nickName,
-          gameType: game.gameType,
-          isActive: game.isActive
+          isActive: game.isActive,
+          resultTime: game.resultTime || '',
+          resultDate: game.resultDate ? new Date(game.resultDate).toISOString().split('T')[0] : ''
         });
       }
     } catch (err) {
@@ -123,20 +126,36 @@ function CreateGame() {
               />
             </div>
 
+
             <div>
-              <label htmlFor="gameType" className="block text-sm font-medium text-yellow-400 mb-2">
-                Game Type
+              <label htmlFor="resultTime" className="block text-sm font-medium text-yellow-400 mb-2">
+                Result Time
               </label>
-              <select
-                id="gameType"
-                name="gameType"
-                value={formData.gameType}
+              <TimePicker
+                value={formData.resultTime}
+                onChange={(time) => setFormData({ ...formData, resultTime: time })}
+                placeholder="Select Result Time"
+              />
+              <p className="text-gray-400 text-sm mt-1">
+                Choose the time when this game's result will be announced
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="resultDate" className="block text-sm font-medium text-yellow-400 mb-2">
+                Result Date
+              </label>
+              <input
+                type="date"
+                id="resultDate"
+                name="resultDate"
+                value={formData.resultDate}
                 onChange={handleChange}
                 className="w-full px-4 py-3 bg-neutral-800 border border-yellow-600/30 rounded-lg text-white focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400"
-              >
-                <option value="prime">Prime</option>
-                <option value="local">Local</option>
-              </select>
+              />
+              <p className="text-gray-400 text-sm mt-1">
+                Choose the date when this game's result will be announced (leave empty for same day)
+              </p>
             </div>
 
             <div className="flex items-center">

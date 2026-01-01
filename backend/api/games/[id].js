@@ -45,9 +45,10 @@ export default async function handler(req, res) {
       // PUT /api/games/:id - Update a game (authenticated)
       // Transform camelCase to match database schema
       const transformedBody = {
-        nickName: req.body.nickName,
-        isActive: req.body.isActive,
-        gameType: req.body.gameType
+        nick_name: req.body.nickName,
+        is_active: req.body.isActive,
+        game_type: req.body.gameType,
+        result_time: req.body.resultTime
       };
 
       const { data, error } = await supabase
@@ -67,17 +68,48 @@ export default async function handler(req, res) {
 
       res.json(data);
     } else if (req.method === 'DELETE') {
-      // DELETE /api/games/:id - Delete a game (authenticated)
-      const { error } = await supabase
+      // DELETE /api/games/:id - Delete a game and its associated results (authenticated)
+      
+      // First, get the game name to find associated results
+      const { data: game, error: gameError } = await supabase
+        .from('games')
+        .select('nick_name')
+        .eq('id', id)
+        .single();
+
+      if (gameError) {
+        throw gameError;
+      }
+
+      if (!game) {
+        return res.status(404).json({ error: 'Game not found' });
+      }
+
+      // Delete all results associated with this game
+      const { error: resultsError } = await supabase
+        .from('results')
+        .delete()
+        .eq('name', game.nick_name);
+
+      if (resultsError) {
+        console.error('Error deleting results:', resultsError);
+        // Continue with game deletion even if results deletion fails
+      }
+
+      // Delete the game itself
+      const { error: deleteGameError } = await supabase
         .from('games')
         .delete()
         .eq('id', id);
 
-      if (error) {
-        throw error;
+      if (deleteGameError) {
+        throw deleteGameError;
       }
 
-      res.json({ message: 'Game deleted successfully' });
+      res.json({ 
+        message: 'Game and associated results deleted successfully',
+        deletedResults: game.nick_name
+      });
     } else {
       res.status(405).json({ error: 'Method not allowed' });
     }

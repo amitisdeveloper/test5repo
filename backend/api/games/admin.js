@@ -58,7 +58,8 @@ export default async function handler(req, res) {
             result: latestResult[0].result,
             date: latestResult[0].created_at,
             time: latestResult[0].time
-          } : null
+          } : null,
+          resultTime: game.result_time || null
         });
       }
     }

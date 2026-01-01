@@ -6,7 +6,6 @@ interface Game {
   _id: string;
   name: string;
   nickName?: string;
-  gameType: string;
   isActive: boolean;
 }
 
@@ -178,6 +177,7 @@ function PublishResultModal({ isOpen, onClose, onSubmit, loading, error, todayDa
               disabled={loading}
             />
           </div>
+
 
           <div className="flex gap-2 pt-2">
             <button

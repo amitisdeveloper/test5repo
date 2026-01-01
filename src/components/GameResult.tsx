@@ -4,7 +4,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 interface Game {
   _id: string;
   nickName: string;
-  gameType: string;
 }
 
 function GameResult() {
@@ -119,9 +118,6 @@ function GameResult() {
 
           <div className="mb-6 p-4 bg-neutral-900/50 rounded-lg">
             <h2 className="text-xl font-semibold text-white mb-2">{game.nickName}</h2>
-            <span className={`inline-block mt-2 text-xs px-2 py-1 rounded ${game.gameType === 'prime' ? 'bg-blue-600' : 'bg-green-600'}`}>
-              {game.gameType.toUpperCase()}
-            </span>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">

@@ -47,6 +47,7 @@ function LatestUpdates({ latestResult, isLoading = false }: LatestUpdatesProps) 
     formattedDate: latestResult.formattedDate || (latestResult.date ? formatGameDate(latestResult.date) : 'Today')
   } : null;
 
+  
   if (isLoading) {
     return (
       <div className="bg-gradient-to-r from-yellow-600 via-amber-500 to-yellow-600 py-4 border-y-2 border-yellow-400/50">
@@ -95,15 +96,17 @@ function LatestUpdates({ latestResult, isLoading = false }: LatestUpdatesProps) 
                   <span>{displayResult.time}</span>
                 </div>
               </div>
-
+              
               <div className="text-white text-base">
                 <span className="text-amber-300">Result:</span>
                 <span className="font-bold text-2xl ml-2 text-white">{displayResult.result}</span>
               </div>
 
               <div className="text-gray-300 text-sm">
-                <div>{displayResult.formattedDate}</div>
-                <div className="text-amber-400">Posted: {displayResult.postedAt}</div>
+                {/* <div>{displayResult.formattedDate}</div> */}
+                <span className="text-amber-300">Posted:</span>
+                <span className="font-bold text-2xl ml-2 text-white">{displayResult.formattedDate}</span>
+                {/* <div className="font-bold text-amber-400">Posted: {displayResult.formattedDate}</div> */}
               </div>
             </div>
           </div>

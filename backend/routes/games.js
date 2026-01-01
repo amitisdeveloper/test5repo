@@ -60,15 +60,11 @@ router.get('/', async (req, res) => {
     console.log('Server Time (UTC):', new Date().toISOString());
     console.log('Server Time (Local):', new Date().toLocaleString());
     
-    const { status, gameType } = req.query;
+    const { status } = req.query;
     const query = { isActive: true };
-    
+
     if (status) {
       query.status = status;
-    }
-
-    if (gameType) {
-      query.gameType = gameType;
     }
 
     const games = await Game.find(query)
@@ -126,23 +122,10 @@ router.get('/', async (req, res) => {
       return gameObj;
     });
 
-    // Separate games into prime and local categories
-    const primeGames = enhancedGames.filter(game => game.gameType === 'prime');
-    const localGames = enhancedGames.filter(game => game.gameType === 'local');
-
-    // Separate by result status within each category
-    const primeUpcoming = primeGames.filter(g => !g.hasResult);
-    const primeWithResults = primeGames.filter(g => g.hasResult);
-    const localUpcoming = localGames.filter(g => !g.hasResult);
-    const localWithResults = localGames.filter(g => g.hasResult);
-
     res.json({
-      prime: primeGames,
-      local: localGames,
-      primeUpcoming,
-      primeWithResults,
-      localUpcoming,
-      localWithResults,
+      games: enhancedGames,
+      upcomingGames: enhancedGames.filter(g => !g.hasResult),
+      gamesWithResults: enhancedGames.filter(g => g.hasResult),
       todayGameDate: formatGameDate(todayGameDate),
       todayDateIST: getTodayDateStringIST(),
       todayDateIST_YYYYMMDD: getTodayDateStringIST_YYYYMMDD(),
@@ -160,13 +143,8 @@ router.get('/', async (req, res) => {
 // Admin endpoint to get all games
 router.get('/admin', verifyToken, async (req, res) => {
   try {
-    const { page = 1, limit = 9, gameType, search, status } = req.query;
+    const { page = 1, limit = 9, search, status } = req.query;
     const query = { isActive: true };
-    
-    // Add gameType filter
-    if (gameType) {
-      query.gameType = gameType;
-    }
 
     // Add search functionality
     if (search) {
@@ -242,7 +220,7 @@ router.get('/admin', verifyToken, async (req, res) => {
 router.get('/admin/active-games', verifyToken, async (req, res) => {
   try {
     const games = await Game.find({ isActive: true })
-      .select('_id name nickName gameType isActive')
+      .select('_id name nickName isActive')
       .sort({ createdAt: -1 });
 
     res.json(games);
@@ -258,7 +236,7 @@ router.get('/latest-result', async (req, res) => {
     // Get the most recent published result from any game
     const latestResult = await GamePublishedResult.findOne()
       .sort({ createdAt: -1 })
-      .populate('gameId', 'nickName gameType');
+      .populate('gameId', 'nickName resultTime');
 
     if (!latestResult) {
       return res.json(null);
@@ -268,7 +246,7 @@ router.get('/latest-result', async (req, res) => {
       result: latestResult.publishedNumber,
       name: latestResult.gameId.nickName,
       date: latestResult.publishDate,
-      time: formatGameTime(latestResult.publishDate),
+      time: latestResult.gameId.resultTime || '02:00 PM',
       formattedDate: formatGameDate(latestResult.publishDate),
       gameId: latestResult.gameId._id,
       postedAt: latestResult.createdAt
@@ -299,7 +277,7 @@ router.get('/:id', async (req, res) => {
 // Create new game
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { nickName, gameType = 'local', isActive = true } = req.body;
+    const { nickName, isActive = true, resultTime, resultDate } = req.body;
 
     if (!nickName) {
       return res.status(400).json({ error: 'Game name is required' });
@@ -307,8 +285,9 @@ router.post('/', verifyToken, async (req, res) => {
 
     const newGame = new Game({
       nickName,
-      gameType,
       isActive,
+      resultTime,
+      resultDate: resultDate ? new Date(resultDate) : null,
       createdBy: req.user.userId
     });
 
@@ -329,7 +308,7 @@ router.post('/', verifyToken, async (req, res) => {
 router.put('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { nickName, gameType, isActive } = req.body;
+    const { nickName, isActive, resultTime, resultDate } = req.body;
     
     const game = await Game.findById(id);
     
@@ -344,8 +323,9 @@ router.put('/:id', verifyToken, async (req, res) => {
 
     // Update game fields
     if (nickName) game.nickName = nickName;
-    if (gameType) game.gameType = gameType;
     if (isActive !== undefined) game.isActive = isActive;
+    if (resultTime !== undefined) game.resultTime = resultTime;
+    if (resultDate !== undefined) game.resultDate = resultDate ? new Date(resultDate) : null;
 
     await game.save();
     await game.populate('createdBy', 'username email');
@@ -359,7 +339,7 @@ router.put('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// Delete game (soft delete - set isActive to false)
+// Delete game (soft delete - set isActive to false, and delete associated results)
 router.delete('/:id', verifyToken, async (req, res) => {
   console.log('\n========== DELETE REQUEST ==========');
   console.log('Time:', new Date().toISOString());
@@ -385,6 +365,11 @@ router.delete('/:id', verifyToken, async (req, res) => {
 
     console.log('Marking game as inactive:', { _id: game._id, name: game.nickName });
 
+    // Delete all results associated with this game
+    console.log('Deleting results for game:', id);
+    const deleteResult = await Result.deleteMany({ gameId: id });
+    console.log('Results deleted:', deleteResult.deletedCount);
+
     // Use soft delete - set isActive to false instead of physically deleting
     const deletedGame = await Game.findByIdAndUpdate(
       id,
@@ -403,7 +388,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
     console.log('[GAME DELETE] Event emitted successfully');
 
     console.log('========== DELETE COMPLETE ==========\n');
-    res.json({ message: 'Game deleted successfully', gameId: id, deleted: true });
+    res.json({ message: 'Game and associated results deleted successfully', gameId: id, deleted: true, resultsDeleted: deleteResult.deletedCount });
     
   } catch (error) {
     console.error('DELETE ERROR:', error.message);
