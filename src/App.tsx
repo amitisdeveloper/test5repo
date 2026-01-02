@@ -63,8 +63,27 @@ function HomePage() {
         console.log('🕒 =========================');
 
         // Use the categorized games from the API response
+        console.log('🕒 === FRONTEND GAMES DATA DEBUG ===');
+        console.log('gamesData.upcomingGames:', gamesData.upcomingGames);
+        console.log('gamesData.gamesWithResults:', gamesData.gamesWithResults);
+        console.log('gamesData.todayGameDate:', gamesData.todayGameDate);
+        console.log('gamesData.todayDateIST:', gamesData.todayDateIST);
+        console.log('gamesData.todayDateIST_YYYYMMDD:', gamesData.todayDateIST_YYYYMMDD);
+        console.log('gamesData.filteringRange:', gamesData.filteringRange);
+        console.log('gamesData.localWithResults count:', gamesData.localWithResults?.length || 0);
+        console.log('gamesData.todaysResults count:', gamesData.todaysResults?.length || 0);
+        console.log('🕒 =========================');
+
+        // Sort games with results by result date descending to get the latest first
+        const sortedTodaysResults = (gamesData.gamesWithResults || []).sort((a: any, b: any) => {
+          const dateA = new Date(a.resultDate || a.createdAt);
+          const dateB = new Date(b.resultDate || b.createdAt);
+          return dateB.getTime() - dateA.getTime();
+        });
+
+        // Show all published results for today, sorted with latest first
         setUpcomingGames(gamesData.upcomingGames || []);
-        setTodaysResults(gamesData.gamesWithResults || []);
+        setTodaysResults(sortedTodaysResults);
         setTodayGameDate(gamesData.todayGameDate || gamesData.todayDateIST || 'Today');
         setTodayDateIST_YYYYMMDD(gamesData.todayDateIST_YYYYMMDD || '');
 

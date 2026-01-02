@@ -286,6 +286,14 @@ router.post('/', verifyToken, async (req, res) => {
   try {
     const { nickName, isActive = true, resultTime, resultDate } = req.body;
 
+    console.log('🕒 === CREATE GAME DEBUG ===');
+    console.log('Request body:', req.body);
+    console.log('nickName:', nickName);
+    console.log('resultTime:', resultTime);
+    console.log('resultDate:', resultDate);
+    console.log('resultDate type:', typeof resultDate);
+    console.log('🕒 =========================');
+
     if (!nickName) {
       return res.status(400).json({ error: 'Game name is required' });
     }

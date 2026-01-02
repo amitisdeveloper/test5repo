@@ -55,6 +55,13 @@ router.post('/', verifyToken, verifyAdmin, async (req, res) => {
     const dateStart = getGameDayStart(parsedDate);
     const dateEnd = getGameDayEnd(parsedDate);
 
+    console.log('🕒 === PUBLISH RESULT DATE CHECK ===');
+    console.log('Requested publishDate:', publishDate);
+    console.log('Parsed date:', parsedDate.toISOString());
+    console.log('Game day start:', dateStart.toISOString());
+    console.log('Game day end:', dateEnd.toISOString());
+    console.log('Game ID:', gameId);
+
     const existingResult = await GamePublishedResult.findOne({
       gameId,
       publishDate: {
@@ -63,8 +70,14 @@ router.post('/', verifyToken, verifyAdmin, async (req, res) => {
       }
     });
 
+    console.log('Existing result found:', !!existingResult);
     if (existingResult) {
-      return res.status(409).json({ error: 'A result for this game already exists on this date' });
+      console.log('Existing result publishDate:', existingResult.publishDate.toISOString());
+    }
+    console.log('🕒 =========================');
+
+    if (existingResult) {
+      return res.status(409).json({ error: 'A result for this game already exists on this dated' });
     }
 
     const newResult = new GamePublishedResult({
@@ -87,7 +100,7 @@ router.post('/', verifyToken, verifyAdmin, async (req, res) => {
     console.error('Create published result error:', error);
     // Handle Mongoose unique constraint error
     if (error.code === 11000) {
-      return res.status(409).json({ error: 'A result for this game already exists on this date' });
+      return res.status(409).json({ error: 'A result for this game already exists on this datee' });
     }
     res.status(500).json({ error: 'Internal server error' });
   }

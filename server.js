@@ -3,6 +3,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const path = require('path');
+process.env.TZ = 'Asia/Kolkata';
 
 dotenv.config();
 
