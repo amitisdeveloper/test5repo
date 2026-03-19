@@ -85,15 +85,29 @@ function getGameDateForTime(date) {
   return dateIST.startOf('day').toDate();
 }
 
+function getGameDayBoundary(date, boundary) {
+  const baseDate = date ? dayjs(date).tz(IST_TIMEZONE) : dayjs(getGameDate()).tz(IST_TIMEZONE);
+
+  if (!baseDate.isValid()) {
+    throw new Error('Invalid date provided for game day boundary');
+  }
+
+  if (boundary === 'start') {
+    return baseDate.hour(GAME_DAY_START).minute(0).second(0).millisecond(0).toDate();
+  }
+
+  return baseDate.add(1, 'day').hour(GAME_DAY_RESET - 1).minute(59).second(59).millisecond(999).toDate();
+}
+
 /**
  * Legacy functions - now use single IST boundary
  */
 function getGameDayStart(gameDate) {
-  return startOfDayIST();
+  return getGameDayBoundary(gameDate, 'start');
 }
 
 function getGameDayEnd(gameDate) {
-  return endOfDayIST();
+  return getGameDayBoundary(gameDate, 'end');
 }
 
 function formatGameDate(date) {
