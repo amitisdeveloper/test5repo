@@ -37,11 +37,19 @@ app.use(express.static(path.join(__dirname, 'dist')));
 const authRoutes = require('./backend/routes/auth');
 const gamesRoutes = require('./backend/routes/games');
 const resultsRoutes = require('./backend/routes/results');
+const gameResultsRoutes = require('./backend/routes/gameResults');
+const dailyGameResultsRoutes = require('./backend/routes/dailyGameResults');
+const adminUsersRoutes = require('./backend/routes/adminUsers');
+const { router: eventsRoutes } = require('./backend/routes/events');
 
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/games', gamesRoutes);
 app.use('/api/results', resultsRoutes);
+app.use('/api/admin/game-results', gameResultsRoutes);
+app.use('/api/admin/daily-results', dailyGameResultsRoutes);
+app.use('/api/admin/users', adminUsersRoutes);
+app.use('/api/events', eventsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
