@@ -360,6 +360,7 @@ function AdminDashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('role');
     navigate('/admin/login');
   };
 
@@ -575,6 +576,12 @@ function AdminDashboard() {
               className="bg-gradient-to-r from-cyan-600 to-cyan-700 text-white px-4 py-2 rounded-lg hover:from-cyan-700 hover:to-cyan-800 transition-all duration-300"
             >
               Published Results
+            </button>
+            <button
+              onClick={() => navigate('/admin/users')}
+              className="bg-gradient-to-r from-violet-600 to-violet-700 text-white px-4 py-2 rounded-lg hover:from-violet-700 hover:to-violet-800 transition-all duration-300"
+            >
+              Users
             </button>
             <button
               onClick={handleLogout}

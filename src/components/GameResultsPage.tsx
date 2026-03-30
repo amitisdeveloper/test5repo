@@ -15,6 +15,16 @@ interface GameResult {
   publishedNumber: string;
   createdAt: string;
   updatedAt: string;
+  createdBy?: {
+    username?: string;
+    name?: string;
+    role?: string;
+  };
+  updatedBy?: {
+    username?: string;
+    name?: string;
+    role?: string;
+  };
 }
 
 interface PaginationInfo {
@@ -46,6 +56,8 @@ function GameResultsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const token = localStorage.getItem('token');
+  const role = localStorage.getItem('role');
+  const isAdmin = role === 'admin';
   const API_BASE = import.meta.env.DEV ? 'http://localhost:3001/api' : '/api';
 
   // Fetch results
@@ -63,6 +75,13 @@ function GameResultsPage() {
           'Authorization': `Bearer ${token}`
         }
       });
+
+      if (response.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
+        navigate('/admin/login');
+        return;
+      }
 
       if (!response.ok) {
         throw new Error('Failed to fetch results');
@@ -203,21 +222,42 @@ function GameResultsPage() {
       <header className="bg-gradient-to-r from-amber-950/80 to-neutral-900 border-b border-yellow-600/30 p-4">
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate('/admin/dashboard')}
-              className="text-yellow-400 hover:text-yellow-300 transition"
-              title="Back to Dashboard"
-            >
-              <ArrowLeft size={24} />
-            </button>
-            <h1 className="text-2xl font-bold text-yellow-400">Published Results</h1>
+            {isAdmin && (
+              <button
+                onClick={() => navigate('/admin/dashboard')}
+                className="text-yellow-400 hover:text-yellow-300 transition"
+                title="Back to Dashboard"
+              >
+                <ArrowLeft size={24} />
+              </button>
+            )}
+            <div>
+              <h1 className="text-2xl font-bold text-yellow-400">
+                {isAdmin ? 'Published Results' : 'My Shift Results'}
+              </h1>
+              <p className="text-xs text-gray-400">
+                {isAdmin ? 'Admin can manage all game shifts' : 'You can manage only your assigned game shifts'}
+              </p>
+            </div>
           </div>
-          <button
-            onClick={() => setModalOpen(true)}
-            className="bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-2 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300"
-          >
-            + Publish Result
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setModalOpen(true)}
+              className="bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-2 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300"
+            >
+              + Publish Result
+            </button>
+            <button
+              onClick={() => {
+                localStorage.removeItem('token');
+                localStorage.removeItem('role');
+                navigate('/admin/login');
+              }}
+              className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
@@ -294,6 +334,8 @@ function GameResultsPage() {
                   <th className="px-6 py-3 text-left font-semibold">Game Name</th>
                   <th className="px-6 py-3 text-left font-semibold">Publish Date</th>
                   <th className="px-6 py-3 text-left font-semibold">Published Number</th>
+                  <th className="px-6 py-3 text-left font-semibold">Entered By</th>
+                  <th className="px-6 py-3 text-left font-semibold">Last Updated By</th>
                   <th className="px-6 py-3 text-center font-semibold">Actions</th>
                 </tr>
               </thead>
@@ -335,8 +377,14 @@ function GameResultsPage() {
                         <div className="text-red-600 text-sm mt-1">{editError}</div>
                       )}
                     </td>
+                    <td className="px-6 py-3">
+                      {result.createdBy?.name || result.createdBy?.username || 'System'}
+                    </td>
+                    <td className="px-6 py-3">
+                      {result.updatedBy?.name || result.updatedBy?.username || '-'}
+                    </td>
                     <td className="px-6 py-3 text-center">
-                      {deleteConfirm === result._id ? (
+                      {deleteConfirm === result._id && isAdmin ? (
                         <div className="flex gap-2 justify-center">
                           <button
                             onClick={() => handleDelete(result._id)}
@@ -361,14 +409,16 @@ function GameResultsPage() {
                           >
                             <Edit2 size={18} />
                           </button>
-                          <button
-                            onClick={() => setDeleteConfirm(result._id)}
-                            disabled={editingId !== null}
-                            className="text-red-600 hover:text-red-800 disabled:opacity-50"
-                            title="Delete"
-                          >
-                            <Trash2 size={18} />
-                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() => setDeleteConfirm(result._id)}
+                              disabled={editingId !== null}
+                              className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                              title="Delete"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>

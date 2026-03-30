@@ -19,7 +19,10 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/555res
 mongoose.connect(MONGODB_URI, {
   serverSelectionTimeoutMS: 5000
 })
-  .then(() => console.log('Connected to MongoDB:', MONGODB_URI.split('?')[0]))
+  .then(async () => {
+    console.log('Connected to MongoDB:', MONGODB_URI.split('?')[0]);
+    await ensureUserIndexes();
+  })
   .catch(err => console.error('MongoDB connection error:', err.message));
 
 // Middleware
@@ -36,7 +39,30 @@ const gamesRoutes = require('./routes/games');
 const resultsRoutes = require('./routes/results');
 const gameResultsRoutes = require('./routes/gameResults');
 const dailyGameResultsRoutes = require('./routes/dailyGameResults');
+const adminUsersRoutes = require('./routes/adminUsers');
+const User = require('./models/User');
 const { router: eventsRoutes } = require('./routes/events');
+
+const ensureUserIndexes = async () => {
+  try {
+    const collection = mongoose.connection.collection('users');
+    const indexes = await collection.indexes();
+    const emailIndex = indexes.find((index) => index.name === 'email_1');
+
+    if (emailIndex && !emailIndex.sparse) {
+      console.log('[INDEX] Updating users.email_1 index to unique+sparse');
+      await collection.dropIndex('email_1');
+      await collection.createIndex(
+        { email: 1 },
+        { unique: true, sparse: true, background: true, name: 'email_1' }
+      );
+    }
+
+    await User.syncIndexes();
+  } catch (error) {
+    console.error('[INDEX] Failed to ensure user indexes:', error.message);
+  }
+};
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -44,6 +70,7 @@ app.use('/api/games', gamesRoutes);
 app.use('/api/results', resultsRoutes);
 app.use('/api/admin/game-results', gameResultsRoutes);
 app.use('/api/admin/daily-results', dailyGameResultsRoutes);
+app.use('/api/admin/users', adminUsersRoutes);
 app.use('/api/events', eventsRoutes);
 
 // Health check

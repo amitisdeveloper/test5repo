@@ -32,6 +32,7 @@ function AdminDashboardV2() {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('role');
     navigate('/admin/login');
   };
 
@@ -121,6 +122,12 @@ function AdminDashboardV2() {
               className="bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-2 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300"
             >
               Create Game
+            </button>
+            <button
+              onClick={() => navigate('/admin/users')}
+              className="bg-gradient-to-r from-violet-600 to-violet-700 text-white px-4 py-2 rounded-lg hover:from-violet-700 hover:to-violet-800 transition-all duration-300"
+            >
+              Users
             </button>
 
             <button

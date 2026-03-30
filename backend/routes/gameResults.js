@@ -23,16 +23,34 @@ const verifyToken = async (req, res, next) => {
   }
 };
 
-// Middleware to verify admin role
-const verifyAdmin = (req, res, next) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Only administrators can perform this action' });
+const canManageGame = async (user, gameId) => {
+  if (user.role === 'admin') {
+    return true;
   }
+
+  const game = await Game.findOne({
+    _id: gameId,
+    assignedUsers: user.userId,
+    isActive: true
+  }).select('_id');
+
+  return !!game;
+};
+
+const verifyResultManager = async (req, res, next) => {
+  if (req.user.role === 'admin') {
+    return next();
+  }
+
+  if (req.user.role !== 'subadmin' && req.user.role !== 'user') {
+    return res.status(403).json({ error: 'Only administrators or assigned subadmins can perform this action' });
+  }
+
   next();
 };
 
 // POST: Publish a new result for a game
-router.post('/', verifyToken, verifyAdmin, async (req, res) => {
+router.post('/', verifyToken, verifyResultManager, async (req, res) => {
   try {
     const { gameId, publishDate, publishedNumber } = req.body;
 
@@ -45,6 +63,11 @@ router.post('/', verifyToken, verifyAdmin, async (req, res) => {
     const game = await Game.findById(gameId);
     if (!game) {
       return res.status(404).json({ error: 'Game not found' });
+    }
+
+    const hasAccess = await canManageGame(req.user, gameId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'You are not assigned to this game shift' });
     }
 
     const parsedDate = new Date(publishDate);
@@ -84,13 +107,23 @@ router.post('/', verifyToken, verifyAdmin, async (req, res) => {
       gameId,
       publishDate: dateStart,
       publishedNumber: publishedNumber.toString(),
-      createdBy: req.user.userId
+      createdBy: req.user.userId,
+      updatedBy: req.user.userId,
+      auditTrail: [{
+        action: 'created',
+        previousValue: null,
+        newValue: publishedNumber.toString(),
+        changedBy: req.user.userId,
+        changedAt: new Date()
+      }]
     });
 
     await newResult.save();
     await newResult.populate([
       { path: 'gameId', select: 'name nickName' },
-      { path: 'createdBy', select: 'username' }
+      { path: 'createdBy', select: 'username name role' },
+      { path: 'updatedBy', select: 'username name role' },
+      { path: 'auditTrail.changedBy', select: 'username name role' }
     ]);
 
     eventEmitter.emit('result-posted', { type: 'result-posted', gameId, publishedNumber });
@@ -112,12 +145,12 @@ router.get('/', async (req, res) => {
   // Check if token is provided (for admin features)
   const jwt = require('jsonwebtoken');
   const token = req.header('Authorization')?.replace('Bearer ', '');
-  let isAdmin = false;
+  let userContext = null;
 
   if (token) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-      isAdmin = decoded.role === 'admin';
+      userContext = decoded;
     } catch (error) {
       // Token invalid or expired, continue as public user
     }
@@ -142,6 +175,31 @@ router.get('/', async (req, res) => {
       query.gameId = gameId;
     }
 
+    if (userContext && userContext.role !== 'admin') {
+      const accessibleGameIds = await Game.find({
+        assignedUsers: userContext.userId,
+        isActive: true
+      }).distinct('_id');
+
+      query.gameId = query.gameId
+        ? (accessibleGameIds.some((id) => id.toString() === query.gameId.toString()) ? query.gameId : null)
+        : { $in: accessibleGameIds };
+
+      if (query.gameId === null) {
+        return res.json({
+          results: [],
+          pagination: {
+            currentPage: parseInt(page) || 1,
+            totalPages: 0,
+            totalItems: 0,
+            itemsPerPage: parseInt(limit) || 10,
+            hasNext: false,
+            hasPrev: false
+          }
+        });
+      }
+    }
+
     const pageNum = parseInt(page) || 1;
     const limitNum = parseInt(limit) || 10;
     const skip = (pageNum - 1) * limitNum;
@@ -149,7 +207,9 @@ router.get('/', async (req, res) => {
     // Fetch results
     const results = await GamePublishedResult.find(query)
       .populate('gameId', 'name nickName resultTime')
-      .populate('createdBy', 'username')
+      .populate('createdBy', 'username name role')
+      .populate('updatedBy', 'username name role')
+      .populate('auditTrail.changedBy', 'username name role')
       .sort({ publishDate: -1 })
       .limit(limitNum)
       .skip(skip);
@@ -176,15 +236,22 @@ router.get('/', async (req, res) => {
 });
 
 // GET: Get a specific published result by ID
-router.get('/:id', verifyToken, verifyAdmin, async (req, res) => {
+router.get('/:id', verifyToken, verifyResultManager, async (req, res) => {
   try {
     const { id } = req.params;
     const result = await GamePublishedResult.findById(id)
       .populate('gameId', 'name nickName')
-      .populate('createdBy', 'username');
+      .populate('createdBy', 'username name role')
+      .populate('updatedBy', 'username name role')
+      .populate('auditTrail.changedBy', 'username name role');
 
     if (!result) {
       return res.status(404).json({ error: 'Result not found' });
+    }
+
+    const hasAccess = await canManageGame(req.user, result.gameId._id);
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'You are not assigned to this game shift' });
     }
 
     res.json(result);
@@ -195,7 +262,7 @@ router.get('/:id', verifyToken, verifyAdmin, async (req, res) => {
 });
 
 // PUT: Update a published result
-router.put('/:id', verifyToken, verifyAdmin, async (req, res) => {
+router.put('/:id', verifyToken, verifyResultManager, async (req, res) => {
   try {
     const { id } = req.params;
     const { publishedNumber } = req.body;
@@ -210,13 +277,29 @@ router.put('/:id', verifyToken, verifyAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Result not found' });
     }
 
+    const hasAccess = await canManageGame(req.user, result.gameId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'You are not assigned to this game shift' });
+    }
+
     // Update the published number
+    const previousValue = result.publishedNumber;
     result.publishedNumber = publishedNumber.toString();
+    result.updatedBy = req.user.userId;
+    result.auditTrail.push({
+      action: 'updated',
+      previousValue,
+      newValue: publishedNumber.toString(),
+      changedBy: req.user.userId,
+      changedAt: new Date()
+    });
     await result.save();
 
     await result.populate([
       { path: 'gameId', select: 'name nickName' },
-      { path: 'createdBy', select: 'username' }
+      { path: 'createdBy', select: 'username name role' },
+      { path: 'updatedBy', select: 'username name role' },
+      { path: 'auditTrail.changedBy', select: 'username name role' }
     ]);
 
     res.json(result);
@@ -227,8 +310,12 @@ router.put('/:id', verifyToken, verifyAdmin, async (req, res) => {
 });
 
 // DELETE: Delete a published result
-router.delete('/:id', verifyToken, verifyAdmin, async (req, res) => {
+router.delete('/:id', verifyToken, async (req, res) => {
   try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Only administrators can delete results' });
+    }
+
     const { id } = req.params;
     const result = await GamePublishedResult.findById(id);
 

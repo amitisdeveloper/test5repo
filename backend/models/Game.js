@@ -28,6 +28,10 @@ const gameSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  assignedUsers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   isActive: {
     type: Boolean,
     default: true
@@ -54,6 +58,7 @@ const gameSchema = new mongoose.Schema({
 // Index for efficient queries
 gameSchema.index({ status: 1, isActive: 1 });
 gameSchema.index({ createdBy: 1 });
+gameSchema.index({ assignedUsers: 1 });
 
 // Cascade delete - delete associated results when game is deleted
 gameSchema.pre('deleteOne', { document: true }, async function(next) {

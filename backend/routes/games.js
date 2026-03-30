@@ -20,6 +20,52 @@ const {
 } = require('../utils/timezone');
 const router = express.Router();
 
+const getResultTimeSortValue = (resultTime) => {
+  if (!resultTime || typeof resultTime !== 'string') {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  const match = resultTime.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const meridiem = match[3].toUpperCase();
+
+  if (meridiem === 'AM' && hours === 12) {
+    hours = 0;
+  } else if (meridiem === 'PM' && hours !== 12) {
+    hours += 12;
+  }
+
+  const totalMinutes = (hours * 60) + minutes;
+
+  // Business-day order:
+  // 02:00 PM -> 11:59 PM come first
+  // 12:00 AM -> 05:59 AM are treated as the last shifts of the previous day
+  if (hours < 6) {
+    return totalMinutes + (24 * 60);
+  }
+
+  if (hours >= 14) {
+    return totalMinutes;
+  }
+
+  // Any daytime values outside the normal game window go after standard shifts.
+  return totalMinutes + (48 * 60);
+};
+
+const sortGamesByResultTimeAsc = (games) => [...games].sort((a, b) => {
+  const timeDiff = getResultTimeSortValue(a.resultTime) - getResultTimeSortValue(b.resultTime);
+  if (timeDiff !== 0) {
+    return timeDiff;
+  }
+
+  return String(a.nickName || a.name || '').localeCompare(String(b.nickName || b.name || ''));
+});
+
 router.use((req, res, next) => {
   console.log(`\n[${new Date().toISOString()}] ${req.method} ${req.path}`);
   next();
@@ -128,10 +174,12 @@ router.get('/', async (req, res) => {
       return gameObj;
     });
 
+    const sortedGames = sortGamesByResultTimeAsc(enhancedGames);
+
     res.json({
-      games: enhancedGames,
-      upcomingGames: enhancedGames.filter(g => !g.hasResult),
-      gamesWithResults: enhancedGames.filter(g => g.hasResult),
+      games: sortedGames,
+      upcomingGames: sortedGames.filter(g => !g.hasResult),
+      gamesWithResults: sortGamesByResultTimeAsc(sortedGames.filter(g => g.hasResult)),
       todayGameDate: formatGameDate(todayGameDate),
       todayDateIST: getTodayDateStringIST(),
       todayDateIST_YYYYMMDD: getTodayDateStringIST_YYYYMMDD(),
@@ -205,8 +253,10 @@ router.get('/admin', verifyToken, async (req, res) => {
       return gameObj;
     }));
 
+    const sortedGames = sortGamesByResultTimeAsc(gamesWithResults);
+
     res.json({
-      games: gamesWithResults,
+      games: sortedGames,
       pagination: {
         currentPage: pageNum,
         totalPages: pages,
@@ -225,7 +275,12 @@ router.get('/admin', verifyToken, async (req, res) => {
 // Get all active games for dropdown (admin endpoint) - MUST come before /:id route
 router.get('/admin/active-games', verifyToken, async (req, res) => {
   try {
-    const games = await Game.find({ isActive: true })
+    const query = { isActive: true };
+    if (req.user.role !== 'admin') {
+      query.assignedUsers = req.user.userId;
+    }
+
+    const games = await Game.find(query)
       .select('_id name nickName isActive')
       .sort({ createdAt: -1 });
 

@@ -18,7 +18,36 @@ const gamePublishedResultSchema = new mongoose.Schema({
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
-  }
+  },
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  auditTrail: [{
+    action: {
+      type: String,
+      enum: ['created', 'updated'],
+      required: true
+    },
+    previousValue: {
+      type: String,
+      default: null
+    },
+    newValue: {
+      type: String,
+      required: true
+    },
+    changedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    changedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }]
 }, {
   timestamps: true
 });

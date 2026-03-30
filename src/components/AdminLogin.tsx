@@ -26,7 +26,8 @@ function AdminLogin() {
 
       if (response.ok) {
         localStorage.setItem('token', data.token);
-        navigate('/admin/dashboard');
+        localStorage.setItem('role', data.user.role);
+        navigate(data.user.role === 'admin' ? '/admin/dashboard' : '/admin/game-results');
       } else {
         setError(data.error || `Login failed: ${response.status}`);
       }
