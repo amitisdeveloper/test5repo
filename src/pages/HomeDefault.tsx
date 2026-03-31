@@ -223,7 +223,7 @@ function HomeDefault() {
               <div>
                 <div className="text-sm font-bold text-neutral-200">
                   LATEST RESULT —{" "}
-                  <span className="text-yellow-400 font-black">
+                  <span className="text-lg md:text-xl text-yellow-400 font-black">
                     {loading ? "—" : (latestResult?.name || latestResult?.gameName || latestResult?.nickName || "—")}
                   </span>
                 </div>
@@ -353,8 +353,8 @@ function HomeDefault() {
         </section>
 
         {/* ===== UPCOMING & RESULTS SECTION ===== */}
-        <section className="grid lg:grid-cols-3 gap-6">
-          {/* Upcoming Section */}
+        {/* <section className="grid lg:grid-cols-3 gap-6">
+         
           <div className="lg:col-span-1 rounded-2xl border border-yellow-600/25 bg-neutral-950/60 p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-black text-yellow-400">UPCOMING</h3>
@@ -461,7 +461,7 @@ function HomeDefault() {
               )}
             </div>
           </div>
-        </section>
+        </section> */}
       </main>
 
       {/* Footer (keep yours) */}
