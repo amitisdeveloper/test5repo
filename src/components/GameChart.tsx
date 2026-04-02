@@ -1,23 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Bar } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
 
 interface GameChartProps {
   gameName: string;
@@ -108,41 +89,10 @@ function GameChart({ gameName, onClose }: GameChartProps) {
     return dayResults.length > 0 ? dayResults[0] : null;
   });
 
-  const chartData = {
-    labels: daysArray.map(day => `${day}`),
-    datasets: [
-      {
-        label: 'Result',
-        data: resultsByDay.map(result => result ? parseInt(result.result) : null),
-        backgroundColor: 'rgba(255, 193, 7, 0.6)',
-        borderColor: 'rgba(255, 193, 7, 1)',
-        borderWidth: 1,
-      },
-    ],
-  };
-
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
-
-  const options = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'top' as const,
-      },
-      title: {
-        display: true,
-        text: `${gameName} Results Chart - ${monthNames[selectedMonth]} ${selectedYear}`,
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-      },
-    },
-  };
 
   const months = monthNames;
   const years = Array.from({ length: 5 }, (_, i) => istYear - i);
@@ -151,7 +101,7 @@ function GameChart({ gameName, onClose }: GameChartProps) {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-gradient-to-br from-amber-950/90 via-neutral-900 to-amber-950/90 rounded-xl p-6 border-2 border-yellow-600/40 shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-yellow-400">{gameName} Chart</h2>
+          <h2 className="text-2xl font-bold text-yellow-400">{gameName} Results</h2>
           <button
             onClick={onClose}
             className="text-yellow-400 hover:text-yellow-300 text-2xl"
@@ -189,13 +139,15 @@ function GameChart({ gameName, onClose }: GameChartProps) {
         </div>
 
         {loading ? (
-          <div className="text-center text-yellow-400">Loading chart...</div>
+          <div className="text-center text-yellow-400">Loading results...</div>
         ) : (
           <>
-            {/* Chart */}
-            <div className="bg-neutral-900/50 rounded-lg p-4 mb-6">
-              <Bar data={chartData} options={options} />
-            </div>
+            {/* <div className="bg-neutral-900/50 rounded-lg border border-yellow-600/20 p-4 mb-6">
+              <div className="text-sm font-semibold text-yellow-400">Chart</div>
+              <div className="mt-2 text-sm text-gray-400">
+                Chart view is temporarily disabled. Results are available in the table below.
+              </div>
+            </div> */}
 
             {/* Tabular Data */}
             <div>

@@ -1,8 +1,48 @@
-import { Phone, Trophy, Clock, TrendingUp, RefreshCw, BarChart3 } from 'lucide-react';
+import { Phone, Trophy, TrendingUp, RefreshCw, BarChart3 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import GameChart from '../components/GameChart';
 import { formatGameDate } from '../utils/timezone';
+
+function parseResultTimeToMinutes(time?: string | null) {
+  if (!time) return Number.MAX_SAFE_INTEGER;
+
+  const normalized = time.trim().toUpperCase().replace(/\s+/g, ' ');
+  const match = normalized.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/);
+
+  if (!match) return Number.MAX_SAFE_INTEGER;
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2] || '0', 10);
+  const period = match[3];
+
+  if (period === 'AM') {
+    hours = hours === 12 ? 0 : hours;
+  } else {
+    hours = hours === 12 ? 12 : hours + 12;
+  }
+
+  let totalMinutes = hours * 60 + minutes;
+
+  // Early-morning publish times belong to the end of the previous market cycle.
+  if (totalMinutes < 6 * 60) {
+    totalMinutes += 24 * 60;
+  }
+
+  return totalMinutes;
+}
+
+function sortGamesByResultTimeAsc<T extends { resultTime?: string | null }>(games: T[]) {
+  return [...games].sort((a, b) => {
+    const timeDifference = parseResultTimeToMinutes(a.resultTime) - parseResultTimeToMinutes(b.resultTime);
+
+    if (timeDifference !== 0) {
+      return timeDifference;
+    }
+
+    return (a as any).nickName?.localeCompare?.((b as any).nickName || '') || 0;
+  });
+}
 
 function HomeDefault() {
   const [allGames, setAllGames] = useState<any[]>([]);
@@ -15,6 +55,7 @@ function HomeDefault() {
   const [todayGameDate, setTodayGameDate] = useState<string>('');
   const [todayDateIST_YYYYMMDD, setTodayDateIST_YYYYMMDD] = useState<string>('');
   const isFirstLoad = useRef(true);
+  const nextUpcomingGame = upcomingGames[0] || null;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -43,8 +84,12 @@ function HomeDefault() {
         const gamesData = await gamesResponse.json();
         const latestResultData = await latestResultResponse.json();
 
+        const sortedAllGames = sortGamesByResultTimeAsc(gamesData.games || []);
+        const sortedUpcomingGames = sortGamesByResultTimeAsc(gamesData.upcomingGames || []);
+        const sortedTodaysResults = sortGamesByResultTimeAsc(gamesData.gamesWithResults || []);
+
         // Store all games for the grid section
-        setAllGames(gamesData.games || []);
+        setAllGames(sortedAllGames);
 
         // 🔍 API TIMEZONE DEBUGGING - Show backend timezone info
         console.log('🕒 === BACKEND TIMEZONE INFO ===');
@@ -68,15 +113,8 @@ function HomeDefault() {
         console.log('gamesData.todaysResults count:', gamesData.todaysResults?.length || 0);
         console.log('🕒 =========================');
 
-        // Sort games with results by result date descending to get the latest first
-        const sortedTodaysResults = (gamesData.gamesWithResults || []).sort((a: any, b: any) => {
-          const dateA = new Date(a.resultDate || a.createdAt);
-          const dateB = new Date(b.resultDate || b.createdAt);
-          return dateB.getTime() - dateA.getTime();
-        });
-
-        // Show all published results for today, sorted with latest first
-        setUpcomingGames(gamesData.upcomingGames || []);
+        // Keep every home-page list ordered by published/result time ascending
+        setUpcomingGames(sortedUpcomingGames);
         setTodaysResults(sortedTodaysResults);
         setTodayGameDate(gamesData.todayGameDate || gamesData.todayDateIST || 'Today');
         setTodayDateIST_YYYYMMDD(gamesData.todayDateIST_YYYYMMDD || '');
@@ -220,34 +258,15 @@ function HomeDefault() {
           <div className="p-5 md:p-7">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               {/* LEFT: LATEST RESULT — GAME NAME + published date/time */}
-              <div>
-                <div className="text-sm font-bold text-neutral-200">
-                  LATEST RESULT —{" "}
-                  <span className="text-lg md:text-xl text-yellow-400 font-black">
-                    {loading ? "—" : (latestResult?.name || latestResult?.gameName || latestResult?.nickName || "—")}
-                  </span>
-                </div>
-                <div className="mt-1 text-sm md:text-base text-neutral-300/80">
-                  {loading
-                    ? " "
-                    : `Published: ${latestResult?.formattedDate || (latestResult?.resultDate ? formatGameDate(latestResult.resultDate) : "")} ${latestResult?.time || latestResult?.resultTime || ""}`}
-                </div>
-              </div>
+              
 
               {/* RIGHT: latest update time */}
-              <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-neutral-950/60 px-4 py-2 text-sm md:text-base text-yellow-200">
-                <Clock className="w-4 h-4 text-yellow-400" />
-                <span>
-                  {loading
-                    ? "Latest update time"
-                    : `Updated: ${latestResult?.formattedDate || (latestResult?.resultDate ? formatGameDate(latestResult.resultDate) : "")} ${latestResult?.time || latestResult?.resultTime || ""}`}
-                </span>
-              </div>
+              
             </div>
 
             {/* Center glowing number */}
             <div className="mt-6 flex items-center justify-center">
-              <div className="rounded-2xl border border-yellow-500/20 bg-neutral-950/70 px-10 py-7 shadow-xl">
+              <div className="flex w-full max-w-xl flex-col items-center justify-center rounded-2xl border border-yellow-500/30 bg-neutral-950/70 px-8 py-7 shadow-xl">
                 {loading ? (
                   <div className="flex flex-col items-center gap-3">
                     <RefreshCw className="w-7 h-7 animate-spin text-yellow-400" />
@@ -255,14 +274,44 @@ function HomeDefault() {
                   </div>
                 ) : (
                   <>
-                    <div className="text-center text-8xl md:text-9xl font-black text-yellow-400"
-                         style={{ animation: "numberGlow 2.2s ease-in-out infinite" }}>
+                    <div
+                      className="mb-2 text-center text-2xl md:text-3xl font-bold text-yellow-400"
+                      style={{
+                        textShadow: "0 0 10px rgba(255,204,0,0.8), 0 0 20px rgba(255,204,0,0.6)"
+                      }}
+                    >
+                      {latestResult?.name || latestResult?.gameName || latestResult?.nickName || "-"}
+                    </div>
+                    <div className="text-center text-6xl md:text-7xl font-extrabold text-yellow-400"
+                         style={{ animation: "numberGlow 2.2s ease-in-out infinite", textShadow: "0 0 20px rgba(255,204,0,0.9), 0 0 40px rgba(255,204,0,0.7)" }}>
                       {latestResult?.result ?? "—"}
                     </div>
-                    <div className="mt-3 text-center text-[11px] text-neutral-300/70">
+                    <div className="mt-3 text-center text-sm text-neutral-300/70">
                       {latestResult?.formattedDate || (latestResult?.resultDate ? formatGameDate(latestResult.resultDate) : "")} • {latestResult?.time || latestResult?.resultTime || ""}
                     </div>
                   </>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center justify-center">
+              <div className="w-full max-w-md rounded-xl border border-yellow-500/20 bg-neutral-900/70 px-4 py-3 text-center shadow-lg">
+                <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-yellow-300/75">
+                  Next Upcoming Game
+                </div>
+                {loading ? (
+                  <div className="mt-2 text-sm text-neutral-400">Loading upcoming game...</div>
+                ) : nextUpcomingGame ? (
+                  <>
+                    <div className="mt-2 text-lg md:text-xl font-bold text-yellow-400">
+                      {nextUpcomingGame.nickName}
+                    </div>
+                    <div className="mt-1 text-sm text-neutral-300/80">
+                      Expected Time: {nextUpcomingGame.resultTime || "-"}
+                    </div>
+                  </>
+                ) : (
+                  <div className="mt-2 text-sm text-neutral-400">No upcoming games right now</div>
                 )}
               </div>
             </div>
@@ -340,9 +389,11 @@ function HomeDefault() {
                       
                       <button
                         onClick={() => setSelectedGameForChart(g.nickName)}
-                        className="p-2 rounded-full bg-neutral-900 border border-yellow-600/20 text-yellow-500 hover:bg-yellow-500 hover:text-neutral-950 transition"
+                        className={`p-2 rounded-full bg-neutral-900 border border-yellow-600/20 text-yellow-500 hover:bg-yellow-500 hover:text-neutral-950 transition ${
+                          !g.hasResult ? "animate-pulse shadow-[0_0_14px_rgba(250,204,21,0.25)]" : ""
+                        }`}
                       >
-                        <BarChart3 className="w-4 h-4" />
+                        <BarChart3 className={`w-4 h-4 ${!g.hasResult ? "animate-bounce" : ""}`} />
                       </button>
                     </div>
                   </div>
@@ -485,7 +536,6 @@ function HomeDefault() {
         </div>
       </footer>
 
-      {/* Game Chart Modal (keep yours) */}
       {selectedGameForChart && (
         <GameChart gameName={selectedGameForChart} onClose={() => setSelectedGameForChart(null)} />
       )}
