@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import TimePicker from './TimePicker';
+import { useAdminPresence } from '../hooks/useAdminPresence';
 
 function CreateGame() {
   const { gameId } = useParams<{ gameId: string }>();
   const isEditing = !!gameId;
   const navigate = useNavigate();
+  useAdminPresence(isEditing ? 'edit-game' : 'create-game');
 
   const [formData, setFormData] = useState({
     nickName: '',

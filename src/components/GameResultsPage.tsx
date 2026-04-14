@@ -3,6 +3,7 @@ import { Trash2, Edit2, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PublishResultModal from './PublishResultModal';
 import { formatGameDate } from '../utils/timezone';
+import { useAdminPresence } from '../hooks/useAdminPresence';
 
 interface GameResult {
   _id: string;
@@ -38,6 +39,7 @@ interface PaginationInfo {
 
 function GameResultsPage() {
   const navigate = useNavigate();
+  useAdminPresence('game-results');
   const [results, setResults] = useState<GameResult[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [loading, setLoading] = useState(false);

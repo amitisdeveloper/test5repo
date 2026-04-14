@@ -229,16 +229,11 @@ router.get('/admin', verifyToken, async (req, res) => {
 
     const games = await Game.find(query)
       .populate('createdBy', 'username email')
-      .sort({ createdAt: -1 })
-      .limit(limitNum)
-      .skip(skip);
-
-    const total = await Game.countDocuments(query);
-    const pages = Math.ceil(total / limitNum);
+      .lean();
 
     // Add latest result for each game
     const gamesWithResults = await Promise.all(games.map(async (game) => {
-      const gameObj = game.toObject();
+      const gameObj = { ...game };
       const latestResult = await Result.findOne({ gameId: game._id })
         .sort({ createdAt: -1 });
       
@@ -254,9 +249,12 @@ router.get('/admin', verifyToken, async (req, res) => {
     }));
 
     const sortedGames = sortGamesByResultTimeAsc(gamesWithResults);
+    const total = sortedGames.length;
+    const pages = Math.ceil(total / limitNum);
+    const paginatedGames = sortedGames.slice(skip, skip + limitNum);
 
     res.json({
-      games: sortedGames,
+      games: paginatedGames,
       pagination: {
         currentPage: pageNum,
         totalPages: pages,
@@ -281,10 +279,10 @@ router.get('/admin/active-games', verifyToken, async (req, res) => {
     }
 
     const games = await Game.find(query)
-      .select('_id name nickName isActive')
-      .sort({ createdAt: -1 });
+      .select('_id name nickName isActive resultTime')
+      .lean();
 
-    res.json(games);
+    res.json(sortGamesByResultTimeAsc(games));
   } catch (error) {
     console.error('Get active games error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -294,9 +292,10 @@ router.get('/admin/active-games', verifyToken, async (req, res) => {
 // Get latest result for any game - MUST come before /:id route
 router.get('/latest-result', async (req, res) => {
   try {
-    // Get the most recent published result from any game
+    // Show the latest result by result date first.
+    // If multiple rows exist on the same date, use entry time as the tie-breaker.
     const latestResult = await GamePublishedResult.findOne()
-      .sort({ createdAt: -1 })
+      .sort({ publishDate: -1, createdAt: -1, _id: -1 })
       .populate('gameId', 'nickName resultTime');
 
     if (!latestResult || !latestResult.gameId) {

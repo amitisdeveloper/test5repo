@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useAdminPresence } from '../hooks/useAdminPresence';
 
 interface Game {
   _id: string;
@@ -8,6 +9,7 @@ interface Game {
 
 function GameResult() {
   const { gameId } = useParams<{ gameId: string }>();
+  useAdminPresence('publish-result');
   const [game, setGame] = useState<Game | null>(null);
   const [formData, setFormData] = useState({
     left: '',

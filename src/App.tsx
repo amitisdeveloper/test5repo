@@ -14,6 +14,63 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ArchivesPage from './components/ArchivesPage';
 import { formatGameDate } from './utils/timezone';
 
+const getResultTimeSortValue = (resultTime?: string | null) => {
+  if (!resultTime || typeof resultTime !== 'string') {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  const match = resultTime.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const meridiem = match[3].toUpperCase();
+
+  if (meridiem === 'AM' && hours === 12) {
+    hours = 0;
+  } else if (meridiem === 'PM' && hours !== 12) {
+    hours += 12;
+  }
+
+  const totalMinutes = (hours * 60) + minutes;
+
+  if (hours < 6) {
+    return totalMinutes + (24 * 60);
+  }
+
+  if (hours >= 14) {
+    return totalMinutes;
+  }
+
+  return Number.MAX_SAFE_INTEGER;
+};
+
+const getCurrentISTGameTimeSortValue = () => {
+  const timeParts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(new Date());
+
+  const hours = parseInt(timeParts.find((part) => part.type === 'hour')?.value || '0', 10);
+  const minutes = parseInt(timeParts.find((part) => part.type === 'minute')?.value || '0', 10);
+  const totalMinutes = (hours * 60) + minutes;
+
+  if (hours < 6) {
+    return totalMinutes + (24 * 60);
+  }
+
+  if (hours >= 14) {
+    return totalMinutes;
+  }
+
+  // Between 6:00 AM and 1:59 PM IST, the next scheduled game should reset to the first shift.
+  return 0;
+};
+
 function HomePage() {
   const [todaysResults, setTodaysResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,8 +78,16 @@ function HomePage() {
   const [selectedGameForChart, setSelectedGameForChart] = useState<string | null>(null);
   const [latestResult, setLatestResult] = useState<any>(null);
   const [todayGameDate, setTodayGameDate] = useState<string>('');
+  const [, setCurrentTimeMarker] = useState(() => Date.now());
   const isFirstLoad = useRef(true);
-  const nextUpcomingGame = todaysResults.find((game: any) => !game.hasResult);
+  const sortedResults = [...todaysResults].sort(
+    (a: any, b: any) => getResultTimeSortValue(a.resultTime) - getResultTimeSortValue(b.resultTime)
+  );
+  const currentISTGameTime = getCurrentISTGameTimeSortValue();
+  const nextUpcomingGame =
+    sortedResults.find((game: any) => getResultTimeSortValue(game.resultTime) >= currentISTGameTime) ||
+    sortedResults[0] ||
+    null;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -120,6 +185,10 @@ function HomePage() {
 
     connectToSSE();
 
+    const clockInterval = setInterval(() => {
+      setCurrentTimeMarker(Date.now());
+    }, 30000);
+
     return () => {
       if (eventSource) {
         console.log('[SSE] Closing connection');
@@ -129,6 +198,8 @@ function HomePage() {
       if (reconnectTimeout) {
         clearTimeout(reconnectTimeout);
       }
+
+      clearInterval(clockInterval);
     };
   }, []);
 
@@ -258,8 +329,8 @@ function HomePage() {
                         <span className="text-white font-bold text-sm">Loading</span>
                       </div>
                       <button
-                        className="w-full bg-gradient-to-r from-gray-600 to-gray-700 text-white font-bold py-2 rounded-lg cursor-not-allowed opacity-50"
-                        disabled
+                        onClick={() => setSelectedGameForChart(game.nickName)}
+                        className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white font-bold py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300 hover:shadow-lg hover:shadow-red-600/50 transform hover:-translate-y-0.5"
                       >
                         View Chart
                       </button>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw } from 'lucide-react';
 import { API_BASE } from '../utils/api';
+import { useAdminPresence } from '../hooks/useAdminPresence';
 
 interface AdminUser {
   _id: string;
@@ -12,7 +13,7 @@ interface AdminUser {
   role?: string;
   isActive: boolean;
   createdAt: string;
-  assignedGames?: { _id: string; name?: string; nickName?: string }[];
+  assignedGames?: { _id: string; name?: string; nickName?: string; resultTime?: string | null }[];
 }
 
 interface PaginationInfo {
@@ -34,6 +35,7 @@ interface GameOption {
   _id: string;
   name?: string;
   nickName?: string;
+  resultTime?: string | null;
 }
 
 interface UserModalState {
@@ -44,6 +46,7 @@ interface UserModalState {
 
 function AdminUsersPage() {
   const navigate = useNavigate();
+  useAdminPresence('users');
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -479,7 +482,7 @@ function AdminUsersPage() {
                       <td className="py-4 px-4">{user.username}</td>
                       <td className="py-4 px-4">
                         {(user.assignedGames || []).length > 0
-                          ? user.assignedGames!.map((game) => game.nickName || game.name).join(', ')
+                          ? user.assignedGames!.map((game) => `${game.nickName || game.name}${game.resultTime ? ` (${game.resultTime})` : ''}`).join(', ')
                           : 'No shifts assigned'}
                       </td>
                       <td className="py-4 px-4">
@@ -628,7 +631,9 @@ function AdminUsersPage() {
                               }}
                               className="w-4 h-4 shrink-0"
                             />
-                            <span className="truncate">{game.nickName || game.name}</span>
+                            <span className="truncate">
+                              {`${game.nickName || game.name}${game.resultTime ? ` (${game.resultTime})` : ''}`}
+                            </span>
                           </label>
                         );
                       })}

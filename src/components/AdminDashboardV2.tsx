@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatGameDate } from '../utils/timezone';
+import { useAdminPresence } from '../hooks/useAdminPresence';
 
 interface Result {
   _id: string;
@@ -24,6 +25,7 @@ function AdminDashboardV2() {
   const [error, setError] = useState('');
 
   const navigate = useNavigate();
+  useAdminPresence('dashboard-v2');
 
   // Initial load
   useEffect(() => {

@@ -37,6 +37,48 @@ const normalizeUsername = (value = '') => String(value).trim();
 
 const generatePassword = () => `${Math.floor(100000 + Math.random() * 900000)}`;
 
+const getResultTimeSortValue = (resultTime) => {
+  if (!resultTime || typeof resultTime !== 'string') {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  const match = resultTime.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const meridiem = match[3].toUpperCase();
+
+  if (meridiem === 'AM' && hours === 12) {
+    hours = 0;
+  } else if (meridiem === 'PM' && hours !== 12) {
+    hours += 12;
+  }
+
+  const totalMinutes = (hours * 60) + minutes;
+
+  if (hours < 6) {
+    return totalMinutes + (24 * 60);
+  }
+
+  if (hours >= 14) {
+    return totalMinutes;
+  }
+
+  return totalMinutes + (48 * 60);
+};
+
+const sortGamesByResultTimeAsc = (games) => [...games].sort((a, b) => {
+  const timeDiff = getResultTimeSortValue(a.resultTime) - getResultTimeSortValue(b.resultTime);
+  if (timeDiff !== 0) {
+    return timeDiff;
+  }
+
+  return String(a.nickName || a.name || '').localeCompare(String(b.nickName || b.name || ''));
+});
+
 const buildUserId = (sequence) => `${USER_ID_PREFIX}${String(sequence).padStart(USER_ID_WIDTH, '0')}`;
 const getDuplicateField = (error) => {
   if (!error || error.code !== 11000) {
@@ -106,11 +148,13 @@ const withAssignedGames = async (users) => {
   }
 
   const games = await Game.find({ assignedUsers: { $in: userIds } })
-    .select('_id name nickName assignedUsers')
+    .select('_id name nickName resultTime assignedUsers')
     .lean();
 
+  const sortedGames = sortGamesByResultTimeAsc(games);
+
   const gameMap = new Map();
-  games.forEach((game) => {
+  sortedGames.forEach((game) => {
     (game.assignedUsers || []).forEach((assignedUserId) => {
       const key = assignedUserId.toString();
       if (!gameMap.has(key)) {
@@ -119,7 +163,8 @@ const withAssignedGames = async (users) => {
       gameMap.get(key).push({
         _id: game._id,
         name: game.name,
-        nickName: game.nickName
+        nickName: game.nickName,
+        resultTime: game.resultTime || null
       });
     });
   });

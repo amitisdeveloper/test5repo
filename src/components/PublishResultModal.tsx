@@ -7,6 +7,7 @@ interface Game {
   name: string;
   nickName?: string;
   isActive: boolean;
+  resultTime?: string | null;
 }
 
 interface PublishResultModalProps {
@@ -143,7 +144,7 @@ function PublishResultModal({ isOpen, onClose, onSubmit, loading, error, todayDa
               <option value="">-- Choose a game --</option>
               {games.map(game => (
                 <option key={game._id} value={game._id}>
-                  {game.name || game.nickName}
+                  {`${game.name || game.nickName}${game.resultTime ? ` (${game.resultTime})` : ''}`}
                 </option>
               ))}
             </select>

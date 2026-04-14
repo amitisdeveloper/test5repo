@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { formatGameDate } from '../utils/timezone';
 import TimePicker from './TimePicker';
+import { useAdminPresence } from '../hooks/useAdminPresence';
 
 interface Game {
   _id: string;
@@ -302,6 +303,7 @@ function AdminDashboard() {
   });
 
   const navigate = useNavigate();
+  const activeAdminUsers = useAdminPresence('dashboard');
 
   useEffect(() => {
     fetchGames();
@@ -559,6 +561,12 @@ function AdminDashboard() {
         <div className="container mx-auto flex justify-between items-center">
           <h1 className="text-2xl font-bold text-yellow-400">Admin Dashboard</h1>
           <div className="flex gap-4">
+            <div className="bg-gradient-to-br from-cyan-950/70 via-neutral-900 to-cyan-950/70 rounded-lg px-4 py-2 border border-cyan-600/30 flex items-center">
+              <div>
+                <div className="text-cyan-400 text-xs font-medium">Total Online Users</div>
+                <div className="text-lg font-bold text-white">{activeAdminUsers}</div>
+              </div>
+            </div>
             <button
               onClick={() => openModal('create')}
               className="bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-2 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300"

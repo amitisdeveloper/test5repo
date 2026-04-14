@@ -40,6 +40,7 @@ const resultsRoutes = require('./routes/results');
 const gameResultsRoutes = require('./routes/gameResults');
 const dailyGameResultsRoutes = require('./routes/dailyGameResults');
 const adminUsersRoutes = require('./routes/adminUsers');
+const adminPresenceRoutes = require('./routes/adminPresence');
 const User = require('./models/User');
 const { router: eventsRoutes } = require('./routes/events');
 
@@ -71,6 +72,7 @@ app.use('/api/results', resultsRoutes);
 app.use('/api/admin/game-results', gameResultsRoutes);
 app.use('/api/admin/daily-results', dailyGameResultsRoutes);
 app.use('/api/admin/users', adminUsersRoutes);
+app.use('/api/admin/presence', adminPresenceRoutes);
 app.use('/api/events', eventsRoutes);
 
 // Health check
