@@ -241,7 +241,7 @@ router.get('/latest-result', async (req, res) => {
   try {
     // Get the most recent published result from any game
     const latestResult = await GamePublishedResult.findOne()
-      .sort({ createdAt: -1 })
+      .sort({ publishDate: -1, createdAt: -1, _id: -1 })
       .populate('gameId', 'nickName resultTime');
 
     if (!latestResult || !latestResult.gameId) {

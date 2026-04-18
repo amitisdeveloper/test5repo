@@ -32,6 +32,29 @@ function parseResultTimeToMinutes(time?: string | null) {
   return totalMinutes;
 }
 
+function getCurrentISTGameTimeSortValue() {
+  const timeParts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(new Date());
+
+  const hours = parseInt(timeParts.find((part) => part.type === 'hour')?.value || '0', 10);
+  const minutes = parseInt(timeParts.find((part) => part.type === 'minute')?.value || '0', 10);
+  const totalMinutes = (hours * 60) + minutes;
+
+  if (hours < 6) {
+    return totalMinutes + (24 * 60);
+  }
+
+  if (hours >= 14) {
+    return totalMinutes;
+  }
+
+  return 0;
+}
+
 function sortGamesByResultTimeAsc<T extends { resultTime?: string | null }>(games: T[]) {
   return [...games].sort((a, b) => {
     const timeDifference = parseResultTimeToMinutes(a.resultTime) - parseResultTimeToMinutes(b.resultTime);
@@ -54,8 +77,14 @@ function HomeDefault() {
   const [latestResult, setLatestResult] = useState<any>(null);
   const [todayGameDate, setTodayGameDate] = useState<string>('');
   const [todayDateIST_YYYYMMDD, setTodayDateIST_YYYYMMDD] = useState<string>('');
+  const [, setCurrentTimeMarker] = useState(() => Date.now());
   const isFirstLoad = useRef(true);
-  const nextUpcomingGame = upcomingGames[0] || null;
+  const scheduledGames = sortGamesByResultTimeAsc(allGames);
+  const currentISTGameTime = getCurrentISTGameTimeSortValue();
+  const nextUpcomingGame =
+    scheduledGames.find((game: any) => parseResultTimeToMinutes(game.resultTime) >= currentISTGameTime) ||
+    scheduledGames[0] ||
+    null;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -172,6 +201,10 @@ function HomeDefault() {
     
     connectToSSE();
 
+    const clockInterval = setInterval(() => {
+      setCurrentTimeMarker(Date.now());
+    }, 30000);
+
     return () => {
       if (eventSource) {
         console.log('[SSE] Closing connection');
@@ -180,6 +213,7 @@ function HomeDefault() {
       if (reconnectTimeout) {
         clearTimeout(reconnectTimeout);
       }
+      clearInterval(clockInterval);
     };
   }, []);
 
