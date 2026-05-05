@@ -4,6 +4,7 @@ const Game = require('../models/Game');
 const eventEmitter = require('../utils/eventEmitter');
 const { getGameDayStart, getGameDayEnd } = require('../utils/timezone');
 const router = express.Router();
+const BULK_IMPORT_MODES = ['skip', 'overwrite'];
 
 // Middleware to verify JWT token
 const verifyToken = async (req, res, next) => {
@@ -48,6 +49,9 @@ const verifyResultManager = async (req, res, next) => {
 
   next();
 };
+
+const getBulkRowDateValue = (row) => row?.publishDate || row?.date || '';
+const getBulkRowNumberValue = (row) => row?.publishedNumber || row?.number || '';
 
 // POST: Publish a new result for a game
 router.post('/', verifyToken, verifyResultManager, async (req, res) => {
@@ -135,6 +139,179 @@ router.post('/', verifyToken, verifyResultManager, async (req, res) => {
     if (error.code === 11000) {
       return res.status(409).json({ error: 'A result for this game already exists on this datee' });
     }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST: Bulk publish results for a single game
+router.post('/bulk', verifyToken, verifyResultManager, async (req, res) => {
+  try {
+    const { gameId, rows, mode = 'skip' } = req.body;
+
+    if (!gameId) {
+      return res.status(400).json({ error: 'gameId is required' });
+    }
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return res.status(400).json({ error: 'rows must be a non-empty array' });
+    }
+
+    if (rows.length > 1000) {
+      return res.status(400).json({ error: 'A maximum of 1000 rows can be imported at once' });
+    }
+
+    if (!BULK_IMPORT_MODES.includes(mode)) {
+      return res.status(400).json({ error: 'mode must be either skip or overwrite' });
+    }
+
+    const game = await Game.findById(gameId).select('_id nickName name');
+    if (!game) {
+      return res.status(404).json({ error: 'Game not found' });
+    }
+
+    const hasAccess = await canManageGame(req.user, gameId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'You are not assigned to this game shift' });
+    }
+
+    const normalizedRows = [];
+    const validationErrors = [];
+    const seenDates = new Map();
+
+    rows.forEach((row, index) => {
+      const lineNumber = Number(row?.lineNumber) || (index + 1);
+      const rawDate = String(getBulkRowDateValue(row)).trim();
+      const rawNumber = String(getBulkRowNumberValue(row)).trim();
+
+      if (!rawDate) {
+        validationErrors.push(`Line ${lineNumber}: date is required`);
+        return;
+      }
+
+      if (!rawNumber) {
+        validationErrors.push(`Line ${lineNumber}: published number is required`);
+        return;
+      }
+
+      const parsedDate = new Date(rawDate);
+      if (isNaN(parsedDate.getTime())) {
+        validationErrors.push(`Line ${lineNumber}: invalid date "${rawDate}"`);
+        return;
+      }
+
+      const normalizedPublishDate = getGameDayStart(parsedDate);
+      const dateKey = normalizedPublishDate.toISOString();
+
+      if (seenDates.has(dateKey)) {
+        validationErrors.push(`Line ${lineNumber}: duplicate date also provided on line ${seenDates.get(dateKey)}`);
+        return;
+      }
+
+      seenDates.set(dateKey, lineNumber);
+      normalizedRows.push({
+        lineNumber,
+        publishedNumber: rawNumber,
+        publishDate: normalizedPublishDate,
+        dateKey
+      });
+    });
+
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        error: 'Bulk import validation failed',
+        details: validationErrors
+      });
+    }
+
+    const existingResults = await GamePublishedResult.find({
+      gameId,
+      publishDate: { $in: normalizedRows.map((row) => row.publishDate) }
+    });
+
+    const existingResultsMap = new Map(
+      existingResults.map((result) => [result.publishDate.toISOString(), result])
+    );
+
+    const newDocuments = [];
+    let inserted = 0;
+    let updated = 0;
+    let skipped = 0;
+
+    for (const row of normalizedRows) {
+      const existingResult = existingResultsMap.get(row.dateKey);
+
+      if (existingResult) {
+        if (mode === 'skip' || existingResult.publishedNumber === row.publishedNumber) {
+          skipped += 1;
+          continue;
+        }
+
+        const previousValue = existingResult.publishedNumber;
+        existingResult.publishedNumber = row.publishedNumber;
+        existingResult.updatedBy = req.user.userId;
+        existingResult.auditTrail.push({
+          action: 'updated',
+          previousValue,
+          newValue: row.publishedNumber,
+          changedBy: req.user.userId,
+          changedAt: new Date()
+        });
+
+        await existingResult.save();
+        updated += 1;
+        continue;
+      }
+
+      newDocuments.push({
+        gameId,
+        publishDate: row.publishDate,
+        publishedNumber: row.publishedNumber,
+        createdBy: req.user.userId,
+        updatedBy: req.user.userId,
+        auditTrail: [{
+          action: 'created',
+          previousValue: null,
+          newValue: row.publishedNumber,
+          changedBy: req.user.userId,
+          changedAt: new Date()
+        }]
+      });
+    }
+
+    if (newDocuments.length > 0) {
+      await GamePublishedResult.insertMany(newDocuments, { ordered: true });
+      inserted = newDocuments.length;
+    }
+
+    if (inserted > 0 || updated > 0) {
+      eventEmitter.emit('result-posted', {
+        type: 'result-posted',
+        gameId,
+        bulk: true,
+        inserted,
+        updated
+      });
+    }
+
+    res.json({
+      message: 'Bulk result import completed',
+      summary: {
+        gameId,
+        gameName: game.nickName || game.name || 'Unknown Game',
+        processed: normalizedRows.length,
+        inserted,
+        updated,
+        skipped,
+        mode
+      }
+    });
+  } catch (error) {
+    console.error('Bulk publish results error:', error);
+
+    if (error.code === 11000) {
+      return res.status(409).json({ error: 'One or more results already exist for the selected dates' });
+    }
+
     res.status(500).json({ error: 'Internal server error' });
   }
 });

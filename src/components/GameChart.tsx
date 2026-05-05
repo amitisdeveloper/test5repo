@@ -54,7 +54,17 @@ function GameChart({ gameName, onClose }: GameChartProps) {
   const fetchResults = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/game-results?limit=1000');
+      const gamesResponse = await fetch('/api/games');
+      let gameId = '';
+
+      if (gamesResponse.ok) {
+        const gamesData = await gamesResponse.json();
+        const games = Array.isArray(gamesData.games) ? gamesData.games : [];
+        const selectedGame = games.find((game: any) => game.nickName === gameName);
+        gameId = selectedGame?._id || '';
+      }
+
+      const response = await fetch(`/api/admin/game-results?limit=1000${gameId ? `&gameId=${gameId}` : ''}`);
 
       if (response.ok) {
         const data = await response.json();
@@ -105,7 +115,11 @@ function GameChart({ gameName, onClose }: GameChartProps) {
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  const years = Array.from({ length: 5 }, (_, i) => istYear - i);
+  const currentYear = istYear || new Date().getFullYear();
+  const years = Array.from(
+    { length: Math.max(0, currentYear - 2025 + 1) },
+    (_, index) => currentYear - index
+  );
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

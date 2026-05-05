@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Trash2, Edit2, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PublishResultModal from './PublishResultModal';
+import BulkPublishResultsModal from './BulkPublishResultsModal';
 import { formatGameDate } from '../utils/timezone';
 import { useAdminPresence } from '../hooks/useAdminPresence';
 
@@ -46,6 +47,8 @@ function GameResultsPage() {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNumber, setEditNumber] = useState('');
   const [editError, setEditError] = useState('');
@@ -143,6 +146,50 @@ function GameResultsPage() {
       fetchResults(1);
     } catch (err: any) {
       throw new Error(err.message);
+    }
+  };
+
+  const handleBulkPublish = async (data: {
+    gameId: string;
+    mode: 'skip' | 'overwrite';
+    rows: {
+      lineNumber: number;
+      date: string;
+      publishedNumber: string;
+    }[];
+  }) => {
+    try {
+      setBulkLoading(true);
+      const response = await fetch(`${API_BASE}/admin/game-results/bulk`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+      });
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        if (Array.isArray(responseData.details) && responseData.details.length > 0) {
+          throw new Error(responseData.details.slice(0, 5).join(' | '));
+        }
+
+        throw new Error(responseData.error || 'Failed to import results');
+      }
+
+      const summary = responseData.summary || {};
+      setSuccessMessage(
+        `Bulk import completed: ${summary.inserted || 0} inserted, ${summary.updated || 0} updated, ${summary.skipped || 0} skipped.`
+      );
+      setBulkModalOpen(false);
+      setTimeout(() => setSuccessMessage(''), 4000);
+      fetchResults(1);
+    } catch (err: any) {
+      throw new Error(err.message);
+    } finally {
+      setBulkLoading(false);
     }
   };
 
@@ -248,6 +295,12 @@ function GameResultsPage() {
               className="bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-2 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300"
             >
               + Publish Result
+            </button>
+            <button
+              onClick={() => setBulkModalOpen(true)}
+              className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-4 py-2 rounded-lg hover:from-indigo-700 hover:to-indigo-800 transition-all duration-300"
+            >
+              Bulk Import
             </button>
             <button
               onClick={() => {
@@ -459,6 +512,12 @@ function GameResultsPage() {
           onClose={() => setModalOpen(false)}
           onSubmit={handlePublishResult}
           todayDateIST_YYYYMMDD={todayDateIST_YYYYMMDD}
+        />
+        <BulkPublishResultsModal
+          isOpen={bulkModalOpen}
+          onClose={() => setBulkModalOpen(false)}
+          onSubmit={handleBulkPublish}
+          loading={bulkLoading}
         />
       </main>
     </div>
