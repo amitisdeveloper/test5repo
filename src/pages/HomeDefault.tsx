@@ -1,8 +1,58 @@
-import { Phone, Trophy, TrendingUp, RefreshCw, BarChart3 } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import {
+  Activity,
+  BarChart3,
+  Bell,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  History,
+  Home,
+  LineChart,
+  MessageCircle,
+  Phone,
+  Radio,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Trophy
+} from 'lucide-react';
+import { motion } from 'framer-motion';
+import ReactApexChart from 'react-apexcharts';
+import type { ApexOptions } from 'apexcharts';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import GameChart from '../components/GameChart';
 import { formatGameDate } from '../utils/timezone';
+
+type Game = {
+  _id?: string;
+  nickName?: string;
+  name?: string;
+  gameName?: string;
+  result?: string | number;
+  resultTime?: string | null;
+  time?: string | null;
+  hasResult?: boolean;
+  resultDate?: string;
+  formattedDate?: string;
+};
+
+type HistoryRow = {
+  id: string;
+  date: string;
+  market: string;
+  result: string;
+  status: 'published' | 'pending';
+};
+
+const sampleGames: Game[] = [
+  { _id: 'sample-1', nickName: 'Delhi Bazar', result: '42', resultTime: '03:00 PM', hasResult: true },
+  { _id: 'sample-2', nickName: 'Shri Ganesh', result: '18', resultTime: '04:20 PM', hasResult: true },
+  { _id: 'sample-3', nickName: 'Faridabad', result: '77', resultTime: '05:50 PM', hasResult: true },
+  { _id: 'sample-4', nickName: 'Ghaziabad', result: '29', resultTime: '08:40 PM', hasResult: true },
+  { _id: 'sample-5', nickName: 'Gali', resultTime: '11:10 PM', hasResult: false },
+  { _id: 'sample-6', nickName: 'Disawar', resultTime: '02:00 AM', hasResult: false }
+];
 
 function parseResultTimeToMinutes(time?: string | null) {
   if (!time) return Number.MAX_SAFE_INTEGER;
@@ -22,14 +72,8 @@ function parseResultTimeToMinutes(time?: string | null) {
     hours = hours === 12 ? 12 : hours + 12;
   }
 
-  let totalMinutes = hours * 60 + minutes;
-
-  // Early-morning publish times belong to the end of the previous market cycle.
-  if (totalMinutes < 6 * 60) {
-    totalMinutes += 24 * 60;
-  }
-
-  return totalMinutes;
+  const totalMinutes = hours * 60 + minutes;
+  return totalMinutes < 6 * 60 ? totalMinutes + 24 * 60 : totalMinutes;
 }
 
 function getCurrentISTGameTimeSortValue() {
@@ -42,65 +86,79 @@ function getCurrentISTGameTimeSortValue() {
 
   const hours = parseInt(timeParts.find((part) => part.type === 'hour')?.value || '0', 10);
   const minutes = parseInt(timeParts.find((part) => part.type === 'minute')?.value || '0', 10);
-  const totalMinutes = (hours * 60) + minutes;
+  const totalMinutes = hours * 60 + minutes;
 
-  if (hours < 6) {
-    return totalMinutes + (24 * 60);
-  }
-
-  if (hours >= 14) {
-    return totalMinutes;
-  }
-
+  if (hours < 6) return totalMinutes + 24 * 60;
+  if (hours >= 14) return totalMinutes;
   return 0;
 }
 
-function sortGamesByResultTimeAsc<T extends { resultTime?: string | null }>(games: T[]) {
+function sortGamesByResultTimeAsc<T extends { resultTime?: string | null; nickName?: string }>(games: T[]) {
   return [...games].sort((a, b) => {
     const timeDifference = parseResultTimeToMinutes(a.resultTime) - parseResultTimeToMinutes(b.resultTime);
-
-    if (timeDifference !== 0) {
-      return timeDifference;
-    }
-
-    return (a as any).nickName?.localeCompare?.((b as any).nickName || '') || 0;
+    if (timeDifference !== 0) return timeDifference;
+    return (a.nickName || '').localeCompare(b.nickName || '');
   });
 }
 
+function getGameName(game?: Game | null) {
+  return game?.nickName || game?.name || game?.gameName || 'मार्केट';
+}
+
+function getResultText(game?: Game | null) {
+  const result = game?.result;
+  if (result === undefined || result === null || result === '') return '--';
+  return String(result).padStart(2, '0');
+}
+
+function getSecondsUntilResult(time?: string | null) {
+  const targetMinutes = parseResultTimeToMinutes(time);
+  if (!Number.isFinite(targetMinutes) || targetMinutes === Number.MAX_SAFE_INTEGER) return 0;
+
+  const nowMinutes = getCurrentISTGameTimeSortValue();
+  const diffMinutes = targetMinutes >= nowMinutes ? targetMinutes - nowMinutes : targetMinutes + 24 * 60 - nowMinutes;
+  return Math.max(0, diffMinutes * 60);
+}
+
+function formatDuration(totalSeconds: number) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function getFilterLabel(filter: 'all' | 'published' | 'pending') {
+  if (filter === 'all') return 'सभी';
+  if (filter === 'published') return 'प्रकाशित';
+  return 'लंबित';
+}
+
 function HomeDefault() {
-  const [allGames, setAllGames] = useState<any[]>([]);
-  const [upcomingGames, setUpcomingGames] = useState<any[]>([]);
-  const [todaysResults, setTodaysResults] = useState<any[]>([]);
+  const [allGames, setAllGames] = useState<Game[]>([]);
+  const [upcomingGames, setUpcomingGames] = useState<Game[]>([]);
+  const [todaysResults, setTodaysResults] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedGameForChart, setSelectedGameForChart] = useState<string | null>(null);
-  const [latestResult, setLatestResult] = useState<any>(null);
-  const [todayGameDate, setTodayGameDate] = useState<string>('');
-  const [todayDateIST_YYYYMMDD, setTodayDateIST_YYYYMMDD] = useState<string>('');
-  const [, setCurrentTimeMarker] = useState(() => Date.now());
+  const [latestResult, setLatestResult] = useState<Game | null>(null);
+  const [todayGameDate, setTodayGameDate] = useState('आज');
+  const [clockTick, setClockTick] = useState(() => Date.now());
   const isFirstLoad = useRef(true);
-  const scheduledGames = sortGamesByResultTimeAsc(allGames);
-  const currentISTGameTime = getCurrentISTGameTimeSortValue();
+
+  const visibleGames = allGames.length ? allGames : sampleGames;
+  const scheduledGames = useMemo(() => sortGamesByResultTimeAsc(visibleGames), [visibleGames]);
   const nextUpcomingGame =
-    scheduledGames.find((game: any) => parseResultTimeToMinutes(game.resultTime) >= currentISTGameTime) ||
+    scheduledGames.find((game) => parseResultTimeToMinutes(game.resultTime) >= getCurrentISTGameTimeSortValue()) ||
     scheduledGames[0] ||
     null;
+  const featuredResult = latestResult || todaysResults[0] || visibleGames.find((game) => game.hasResult) || sampleGames[0];
+  const historyRows = useMemo(() => buildHistoryRows(todaysResults.length ? todaysResults : visibleGames), [todaysResults, visibleGames]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        if (isFirstLoad.current) {
-          setLoading(true);
-        }
-        
-        // 🔍 TIMEZONE DEBUGGING - Show exact timezone info
-        console.log('🕒 === TIMEZONE DEBUG INFO ===');
-        console.log('Browser Timezone:', Intl.DateTimeFormat().resolvedOptions().timeZone);
-        console.log('Current UTC Time:', new Date().toISOString());
-        console.log('Local Time String:', new Date().toLocaleString());
-        console.log('Local Time Zone Offset:', new Date().getTimezoneOffset(), 'minutes');
-        console.log(' IST (Asia/Kolkata) Time:', new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
-        
+        if (isFirstLoad.current) setLoading(true);
+
         const [gamesResponse, latestResultResponse] = await Promise.all([
           fetch('/api/games'),
           fetch('/api/games/latest-result')
@@ -113,47 +171,15 @@ function HomeDefault() {
         const gamesData = await gamesResponse.json();
         const latestResultData = await latestResultResponse.json();
 
-        const sortedAllGames = sortGamesByResultTimeAsc(gamesData.games || []);
-        const sortedUpcomingGames = sortGamesByResultTimeAsc(gamesData.upcomingGames || []);
-        const sortedTodaysResults = sortGamesByResultTimeAsc(gamesData.gamesWithResults || []);
-
-        // Store all games for the grid section
-        setAllGames(sortedAllGames);
-
-        // 🔍 API TIMEZONE DEBUGGING - Show backend timezone info
-        console.log('🕒 === BACKEND TIMEZONE INFO ===');
-        console.log('todayGameDate from API:', gamesData.todayGameDate);
-        console.log('todayDateIST from API:', gamesData.todayDateIST);
-        console.log('todayDateIST_YYYYMMDD from API:', gamesData.todayDateIST_YYYYMMDD);
-        console.log('filteringRange from API:', gamesData.filteringRange);
-        console.log('localWithResults count:', gamesData.localWithResults?.length || 0);
-        console.log('todaysResults count:', gamesData.todaysResults?.length || 0);
-        console.log('🕒 =========================');
-
-        // Use the categorized games from the API response
-        console.log('🕒 === FRONTEND GAMES DATA DEBUG ===');
-        console.log('gamesData.upcomingGames:', gamesData.upcomingGames);
-        console.log('gamesData.gamesWithResults:', gamesData.gamesWithResults);
-        console.log('gamesData.todayGameDate:', gamesData.todayGameDate);
-        console.log('gamesData.todayDateIST:', gamesData.todayDateIST);
-        console.log('gamesData.todayDateIST_YYYYMMDD:', gamesData.todayDateIST_YYYYMMDD);
-        console.log('gamesData.filteringRange:', gamesData.filteringRange);
-        console.log('gamesData.localWithResults count:', gamesData.localWithResults?.length || 0);
-        console.log('gamesData.todaysResults count:', gamesData.todaysResults?.length || 0);
-        console.log('🕒 =========================');
-
-        // Keep every home-page list ordered by published/result time ascending
-        setUpcomingGames(sortedUpcomingGames);
-        setTodaysResults(sortedTodaysResults);
-        setTodayGameDate(gamesData.todayGameDate || gamesData.todayDateIST || 'Today');
-        setTodayDateIST_YYYYMMDD(gamesData.todayDateIST_YYYYMMDD || '');
-
-        // Set the latest result from the API
+        setAllGames(sortGamesByResultTimeAsc(gamesData.games || []));
+        setUpcomingGames(sortGamesByResultTimeAsc(gamesData.upcomingGames || []));
+        setTodaysResults(sortGamesByResultTimeAsc(gamesData.gamesWithResults || []));
+        setTodayGameDate(gamesData.todayGameDate || gamesData.todayDateIST || 'आज');
         setLatestResult(latestResultData);
         setError(null);
-      } catch (err) {
-        console.error('Error fetching data:', err);
-        setError('Failed to load data. Please try again later.');
+      } catch (fetchError) {
+        console.error('Error fetching data:', fetchError);
+        setError('लाइव फीड फिर से जुड़ रही है। अभी नमूना बोर्ड दिखाया जा रहा है।');
       } finally {
         if (isFirstLoad.current) {
           setLoading(false);
@@ -163,454 +189,759 @@ function HomeDefault() {
     };
 
     fetchData();
-    
-    // Connect to SSE for real-time updates
+
     let eventSource: EventSource | null = null;
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
-    
+
     const connectToSSE = () => {
-      console.log('[SSE] Connecting to event stream...');
       eventSource = new EventSource('/api/events/subscribe');
-      
-      eventSource.onopen = () => {
-        console.log('[SSE] Connection established');
-      };
-      
+
       eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          console.log('[SSE] Event received:', data.type);
-          if (data.type === 'result-posted' || data.type === 'game-created' || data.type === 'game-updated' || data.type === 'game-deleted') {
-            console.log('[SSE] Triggering data refresh for:', data.type);
+          if (['result-posted', 'game-created', 'game-updated', 'game-deleted'].includes(data.type)) {
             fetchData();
           }
-        } catch (err) {
-          // Ignore heartbeat messages and parsing errors
+        } catch {
+          // Heartbeat messages do not need UI handling.
         }
       };
 
       eventSource.onerror = () => {
-        console.error('[SSE] Connection error, will reconnect...');
         eventSource?.close();
         eventSource = null;
-        
-        // Attempt to reconnect after 5 seconds
         reconnectTimeout = setTimeout(connectToSSE, 5000);
       };
     };
-    
+
     connectToSSE();
 
     const clockInterval = setInterval(() => {
-      setCurrentTimeMarker(Date.now());
-    }, 30000);
+      setClockTick(Date.now());
+    }, 1000);
 
     return () => {
-      if (eventSource) {
-        console.log('[SSE] Closing connection');
-        eventSource.close();
-      }
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
+      eventSource?.close();
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
       clearInterval(clockInterval);
     };
   }, []);
 
   return (
-    <div className="min-h-screen text-[16px] md:text-[18px] lg:text-[19px] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-950/40 via-neutral-950 to-neutral-950 text-white">
-      {/* Local styles for glow + subtle grid */}
-      <style>{`
-        @keyframes softGlow {
-          0%,100% { filter: drop-shadow(0 0 10px rgba(245,158,11,.25)); }
-          50% { filter: drop-shadow(0 0 18px rgba(245,158,11,.55)); }
-        }
-        @keyframes numberGlow {
-          0%,100% { text-shadow: 0 0 18px rgba(245,158,11,.35), 0 0 42px rgba(245,158,11,.15); }
-          50% { text-shadow: 0 0 26px rgba(245,158,11,.65), 0 0 70px rgba(245,158,11,.25); }
-        }
-        @keyframes wave {
-          0%, 100% { transform: scaleY(0.5); }
-          50% { transform: scaleY(1); }
-        }
-        .bg-grid {
-          background-image:
-            linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
-          background-size: 44px 44px;
-          background-position: center;
-        }
-      `}</style>
+    <LayoutWrapper>
+      <HeroSection
+        latestResult={featuredResult}
+        allGames={visibleGames}
+        clockTick={clockTick}
+        loading={loading}
+      />
 
-      {/* Header / Title (like image2 top) */}
-      <header className="relative pt-10 pb-6 px-4">
-        <div className="absolute inset-0 bg-grid opacity-[0.25]" />
-        <div className="container mx-auto relative z-10 text-center">
-          <div
-            className="mx-auto mb-4 inline-flex h-20 w-20 items-center justify-center rounded-full
-            bg-gradient-to-br from-yellow-500 via-amber-600 to-yellow-700 border-4 border-yellow-400/25 shadow-xl"
-            style={{ animation: "softGlow 2.4s ease-in-out infinite" }}
-          >
-            <Trophy className="h-10 w-10 text-white" />
-          </div>
-
-          <h1
-            className="text-5xl md:text-6xl font-black text-transparent bg-clip-text
-            bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-500"
-            style={{ animation: "numberGlow 2.4s ease-in-out infinite" }}
-          >
-            555 RESULTS
-          </h1>
-
-          <div className="mt-2 flex items-center justify-center gap-2 text-amber-300/90">
-            <TrendingUp className="w-4 h-4" />
-            <p className="text-sm font-semibold">Live Results & Fast Updates</p>
-            <TrendingUp className="w-4 h-4" />
-          </div>
-        </div>
-      </header>
-
-      {/* Error banner (like image2) */}
       {error && (
-        <div className="container mx-auto px-4 mt-2">
-          <div className="bg-red-900/40 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg flex items-center gap-3">
-            <RefreshCw className="w-5 h-5 animate-spin" />
-            <p className="text-sm">{error}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="ml-auto bg-red-500/20 hover:bg-red-500/40 px-3 py-1 rounded text-xs transition-colors"
-            >
-              Retry
-            </button>
+        <div className="mx-auto mt-4 max-w-7xl px-4">
+          <div className="rounded-2xl border border-red-400/30 bg-red-950/40 px-4 py-3 text-sm text-red-100 shadow-[0_0_32px_rgba(248,113,113,0.15)]">
+            {error}
           </div>
         </div>
       )}
 
-      {/* ===== Latest Result Hero ===== */}
-      <section className="container mx-auto px-4 mt-6">
-        <div className="rounded-2xl border border-yellow-600/25 bg-gradient-to-br from-neutral-900/70 via-neutral-950 to-amber-950/40 shadow-2xl overflow-hidden">
-          <div className="p-5 md:p-7">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-              {/* LEFT: LATEST RESULT — GAME NAME + published date/time */}
-              
-
-              {/* RIGHT: latest update time */}
-              
-            </div>
-
-            {/* Center glowing number */}
-            <div className="mt-6 flex items-center justify-center">
-              <div className="flex w-full max-w-xl flex-col items-center justify-center rounded-2xl border border-yellow-500/30 bg-neutral-950/70 px-8 py-7 shadow-xl">
-                {loading ? (
-                  <div className="flex flex-col items-center gap-3">
-                    <RefreshCw className="w-7 h-7 animate-spin text-yellow-400" />
-                    <div className="text-xs text-yellow-200/70">Loading latest result…</div>
-                  </div>
-                ) : (
-                  <>
-                    <div
-                      className="mb-2 text-center text-2xl md:text-3xl font-bold text-yellow-400"
-                      style={{
-                        textShadow: "0 0 10px rgba(255,204,0,0.8), 0 0 20px rgba(255,204,0,0.6)"
-                      }}
-                    >
-                      {latestResult?.name || latestResult?.gameName || latestResult?.nickName || "-"}
-                    </div>
-                    <div className="text-center text-6xl md:text-7xl font-extrabold text-yellow-400"
-                         style={{ animation: "numberGlow 2.2s ease-in-out infinite", textShadow: "0 0 20px rgba(255,204,0,0.9), 0 0 40px rgba(255,204,0,0.7)" }}>
-                      {latestResult?.result ?? "—"}
-                    </div>
-                    <div className="mt-3 text-center text-sm text-neutral-300/70">
-                      {latestResult?.formattedDate || (latestResult?.resultDate ? formatGameDate(latestResult.resultDate) : "")} • {latestResult?.time || latestResult?.resultTime || ""}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-4 flex items-center justify-center">
-              <div className="w-full max-w-md rounded-xl border border-yellow-500/20 bg-neutral-900/70 px-4 py-3 text-center shadow-lg">
-                <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-yellow-300/75">
-                  Next Upcoming Game
-                </div>
-                {loading ? (
-                  <div className="mt-2 text-sm text-neutral-400">Loading upcoming game...</div>
-                ) : nextUpcomingGame ? (
-                  <>
-                    <div className="mt-2 text-lg md:text-xl font-bold text-yellow-400">
-                      {nextUpcomingGame.nickName}
-                    </div>
-                    <div className="mt-1 text-sm text-neutral-300/80">
-                      Expected Time: {nextUpcomingGame.resultTime || "-"}
-                    </div>
-                  </>
-                ) : (
-                  <div className="mt-2 text-sm text-neutral-400">No upcoming games right now</div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ====== MAIN CONTENT ====== */}
-      <main className="container mx-auto px-4 pb-10 space-y-8">
-        {/* ====== INFO / NOTICE PANEL (like image1 "INFO ONLY") ====== */}
-        <section className="rounded-2xl border border-yellow-600/25 bg-neutral-950/60 overflow-hidden">
-          <div className="bg-yellow-500/90 text-neutral-950 font-extrabold text-sm px-5 py-3 flex items-center justify-between">
-            <span>INFO ONLY</span>
-            <span className="text-[11px] bg-neutral-950/20 px-2 py-1 rounded">BOX</span>
-          </div>
-
-          <div className="p-5 md:p-7">
-            <div className="rounded-xl border border-yellow-600/15 bg-neutral-900/50 p-5 text-sm text-neutral-200/80">
-              <div className="font-bold text-yellow-300 mb-3">Market Time Table</div>
-
-              <ul className="space-y-2 text-[13px]">
-                <li className="flex items-center justify-between"><span>Delhi Bazar</span><span className="text-yellow-200/80">03:00 PM</span></li>
-                <li className="flex items-center justify-between"><span>Shri Ganesh</span><span className="text-yellow-200/80">04:20 PM</span></li>
-                <li className="flex items-center justify-between"><span>Faridabad</span><span className="text-yellow-200/80">05:50 PM</span></li>
-                <li className="flex items-center justify-between"><span>Ghaziabad</span><span className="text-yellow-200/80">08:40 PM</span></li>
-                <li className="flex items-center justify-between"><span>Gali</span><span className="text-yellow-200/80">11:10 PM</span></li>
-                <li className="flex items-center justify-between"><span>Disawar</span><span className="text-yellow-200/80">02:00 AM</span></li>
-              </ul>
-
-              <div className="mt-5 flex items-center justify-center">
-                <button className="inline-flex items-center gap-2 rounded-full bg-emerald-500/90 hover:bg-emerald-500 px-6 py-3 font-bold text-neutral-950 transition">
-                  <Phone className="w-5 h-5" />
-                  WhatsApp Now
-                </button>
-              </div>
-
-              <div className="mt-4 text-center text-[11px] text-neutral-400">
-                Note: Yeh information sirf general purpose ke liye.
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ===== ALL GAMES GRID (no chart button) ===== */}
-        <section>
-          <div className="flex items-center gap-3 mb-5">
-            <div className="h-[2px] flex-1 bg-gradient-to-r from-transparent via-yellow-500/70 to-yellow-500/70 rounded" />
-            <h2 className="text-xl md:text-2xl font-extrabold text-yellow-400">ALL GAMES</h2>
-            <div className="h-[2px] flex-1 bg-gradient-to-l from-transparent via-yellow-500/70 to-yellow-500/70 rounded" />
-          </div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-            {(loading ? Array.from({ length: 8 }) : allGames).map((g: any, idx: number) => (
-              <div
-                key={g?._id || idx}
-                className="rounded-xl border border-yellow-600/20 bg-neutral-950/50 hover:border-yellow-500/40 transition p-4"
-              >
-                {loading ? (
-                  <SkeletonCompactCard />
-                ) : (
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="text-white font-bold text-sm truncate uppercase">{g.nickName}</div>
-                      <div className="text-[11px] text-neutral-400 mt-0.5">
-                        {g.resultTime ? `Time: ${g.resultTime}` : " "}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <div className="bg-neutral-900 border border-yellow-600/30 rounded-lg px-3 py-1.5 min-w-[3.5rem] text-center">
-                        <span className="text-yellow-400 font-black text-lg">
-                          {g.hasResult ? g.result : "—"}
-                        </span>
-                      </div>
-                      
-                      <button
-                        onClick={() => setSelectedGameForChart(g.nickName)}
-                        className={`p-2 rounded-full bg-neutral-900 border border-yellow-600/20 text-yellow-500 hover:bg-yellow-500 hover:text-neutral-950 transition ${
-                          !g.hasResult ? "animate-pulse shadow-[0_0_14px_rgba(250,204,21,0.25)]" : ""
-                        }`}
-                      >
-                        <BarChart3 className={`w-4 h-4 ${!g.hasResult ? "animate-bounce" : ""}`} />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ===== UPCOMING & RESULTS SECTION ===== */}
-        {/* <section className="grid lg:grid-cols-3 gap-6">
-         
-          <div className="lg:col-span-1 rounded-2xl border border-yellow-600/25 bg-neutral-950/60 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-black text-yellow-400">UPCOMING</h3>
-              <div className="h-1 w-12 bg-yellow-500/50 rounded-full" />
-            </div>
-
-            {loading ? (
-              <div className="space-y-3">
-                <SkeletonLine />
-                <SkeletonLine />
-                <SkeletonLine />
-              </div>
-            ) : upcomingGames.length === 0 ? (
-              <div className="text-center text-gray-400 py-6 text-sm">No upcoming games</div>
-            ) : (
-              <div className="space-y-3">
-                {upcomingGames.map((game: any, index: number) => (
-                  <div
-                    key={index}
-                    className="rounded-xl border border-yellow-600/15 bg-neutral-950/40 p-4 hover:border-yellow-500/40 transition"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-white font-bold text-sm">{game.nickName}</div>
-                        <div className="text-[11px] text-neutral-400 mt-1">
-                          {game.resultTime ? `Result Time: ${game.resultTime}` : " "}
-                        </div>
-                      </div>
-
-                      {!game.hasResult && <RefreshCw className="w-4 h-4 animate-spin text-yellow-400/80" />}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="lg:col-span-2 rounded-2xl p-6 border border-yellow-600/25 bg-gradient-to-br from-amber-950/35 via-neutral-950 to-neutral-900 shadow-xl">
-            <div className="text-center mb-6">
-              <h2 className="text-3xl font-black text-yellow-400 mb-2">Today's Results Board</h2>
-              <p className="text-yellow-200/80 text-sm mb-2">{todayGameDate}</p>
-              <div className="inline-flex items-center gap-2 bg-red-600 text-white text-xs font-black px-4 py-1 rounded-full">
-                ● PUBLISHED RESULTS ●
-              </div>
-            </div>
-
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {loading ? (
-                Array.from({ length: 6 }).map((_, i) => <SkeletonResultCard key={i} />)
-              ) : todaysResults.length === 0 ? (
-                <div className="col-span-full text-center text-gray-400 py-8">
-                  <p className="text-lg">No results published for today yet</p>
-                  <p className="text-sm mt-2">Check back later for today's game results</p>
-                </div>
-              ) : (
-                todaysResults.map((game: any, index: number) => (
-                  <div
-                    key={index}
-                    className="rounded-2xl p-4 border border-yellow-600/20 bg-neutral-950/40 hover:border-yellow-400/50 transition"
-                  >
-                    <h4 className="text-yellow-400 font-black text-center mb-1 text-sm">
-                      {game.nickName}
-                    </h4>
-
-                    <p className="text-blue-400 text-xs text-center mb-2">
-                      {game.resultTime ? `Result Time: ${game.resultTime}` : " "}
-                    </p>
-
-                    {game.hasResult && game.result ? (
-                      <>
-                        <p className="text-center text-gray-500 text-xs mb-3">
-                          {game.resultDate ? `${formatGameDate(game.resultDate)} • ${game.resultTime || ""}` : "Today"}
-                        </p>
-                        <div className="text-center">
-                          <div
-                            className="rounded-xl py-3 px-6 mb-3 border border-yellow-500/25 bg-yellow-500/10"
-                            style={{ animation: "softGlow 2.2s ease-in-out infinite" }}
-                          >
-                            <span className="text-yellow-300 font-black text-2xl">{game.result}</span>
-                          </div>
-                          <button
-                            onClick={() => setSelectedGameForChart(game.nickName)}
-                            className="w-full rounded-xl bg-gradient-to-r from-red-600 to-red-700 text-white font-black py-2 hover:from-red-700 hover:to-red-800 transition"
-                          >
-                            View Chart
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-center">
-                        <div className="rounded-xl py-3 px-6 mb-3 border border-neutral-700/40 bg-neutral-900/50">
-                          <span className="text-neutral-200 font-bold text-sm">Loading / Pending</span>
-                        </div>
-                        <button
-                          className="w-full rounded-xl bg-neutral-800 text-white font-bold py-2 cursor-not-allowed opacity-50"
-                          disabled
-                        >
-                          View Chart
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </section> */}
+      <main className="mx-auto max-w-7xl px-4 pb-28 pt-6 md:pb-14">
+        <LiveResultCard
+          result={featuredResult}
+          nextGame={nextUpcomingGame}
+          todayGameDate={todayGameDate}
+          loading={loading}
+          clockTick={clockTick}
+        />
+        <UpcomingMarketsSection games={upcomingGames.length ? upcomingGames : scheduledGames.slice(0, 6)} clockTick={clockTick} />
+        <MarketGrid games={visibleGames} loading={loading} onOpenChart={setSelectedGameForChart} />
+        <HistoryTable rows={historyRows} />
+        <AnalyticsCharts games={visibleGames} onOpenChart={setSelectedGameForChart} />
       </main>
 
-      {/* Footer (keep yours) */}
-      <footer className="bg-gradient-to-b from-transparent to-amber-950/30 py-8 mt-8 border-t border-yellow-600/20">
-        <div className="container mx-auto px-4">
-          <div className="text-center space-y-3">
-            <p className="text-yellow-400 font-semibold">© 2024 555 Results Live Results. All Rights Reserved.</p>
-            <p className="text-gray-500 text-sm">Play Responsibly | 18+ Only | Gambling Can Be Addictive</p>
-            <div className="flex items-center justify-center gap-4 text-xs text-gray-600">
-              <span>Terms & Conditions</span>
-              <span>•</span>
-              <span>Privacy Policy</span>
-              <span>•</span>
-              <span>Responsible Gaming</span>
-              <span>•</span>
-              <Link to="/archives" className="text-yellow-500 hover:text-yellow-400 transition-colors">
-                Archives
-              </Link>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
+      <BottomNavigation />
 
       {selectedGameForChart && (
         <GameChart gameName={selectedGameForChart} onClose={() => setSelectedGameForChart(null)} />
       )}
+    </LayoutWrapper>
+  );
+}
+
+function LayoutWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen overflow-hidden bg-[#0B0B0B] text-white [font-family:'Noto_Sans_Devanagari','Mangal','Kohinoor_Devanagari','Arial_Unicode_MS',system-ui,sans-serif]">
+      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(212,175,55,0.22),transparent_32%),radial-gradient(circle_at_80%_0%,rgba(250,204,21,0.13),transparent_28%),linear-gradient(135deg,#0B0B0B,#111827_52%,#050505)]" />
+      <div className="fixed inset-0 -z-10 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:54px_54px] opacity-30" />
+      <Particles />
+      {children}
     </div>
   );
 }
 
-// Helper skeleton components
-function SkeletonLine() {
+function Particles() {
   return (
-    <div className="rounded-xl border border-yellow-600/10 bg-neutral-950/40 p-4">
-      <div className="h-3 w-2/3 bg-neutral-800/70 rounded mb-2 animate-pulse" />
-      <div className="h-2 w-1/2 bg-neutral-800/50 rounded animate-pulse" />
+    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+      {Array.from({ length: 22 }).map((_, index) => (
+        <motion.span
+          key={index}
+          className="absolute h-1 w-1 rounded-full bg-yellow-300/60 shadow-[0_0_18px_rgba(250,204,21,0.75)]"
+          style={{
+            left: `${(index * 37) % 100}%`,
+            top: `${(index * 23) % 100}%`
+          }}
+          animate={{ y: [-12, 18, -12], opacity: [0.15, 0.85, 0.15], scale: [0.75, 1.45, 0.75] }}
+          transition={{ duration: 4 + (index % 6), repeat: Infinity, ease: 'easeInOut', delay: index * 0.18 }}
+        />
+      ))}
     </div>
   );
 }
 
-function SkeletonResultCard() {
-  return (
-    <div className="rounded-2xl p-4 border border-yellow-600/15 bg-neutral-950/40">
-      <div className="h-3 w-2/3 mx-auto bg-neutral-800/70 rounded mb-2 animate-pulse" />
-      <div className="h-2 w-1/2 mx-auto bg-neutral-800/50 rounded mb-4 animate-pulse" />
-      <div className="h-12 w-full bg-neutral-800/40 rounded-xl animate-pulse" />
-      <div className="h-9 w-full bg-neutral-800/30 rounded-xl mt-3 animate-pulse" />
-    </div>
-  );
-}
+function HeroSection({
+  latestResult,
+  allGames,
+  clockTick,
+  loading
+}: {
+  latestResult: Game;
+  allGames: Game[];
+  clockTick: number;
+  loading: boolean;
+}) {
+  const liveClock = useMemo(() => {
+    return new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    }).format(new Date(clockTick));
+  }, [clockTick]);
 
-function SkeletonCompactCard() {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <div className="min-w-0 flex-1">
-        <div className="h-3 w-3/4 bg-neutral-800/70 rounded mb-2 animate-pulse" />
-        <div className="h-2 w-1/2 bg-neutral-800/50 rounded animate-pulse" />
+    <header className="relative px-4 pb-5 pt-5 md:pt-8">
+      <div className="mx-auto max-w-7xl">
+        <nav className="flex items-center justify-between gap-4">
+          <motion.div
+            className="flex items-center gap-3"
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="relative grid h-12 w-12 place-items-center rounded-2xl border border-yellow-300/30 bg-yellow-300/10 shadow-[0_0_32px_rgba(212,175,55,0.34)]">
+              <motion.div
+                className="absolute inset-1 rounded-xl border border-yellow-200/20"
+                animate={{ scale: [1, 1.08, 1], opacity: [0.6, 1, 0.6] }}
+                transition={{ duration: 2.2, repeat: Infinity }}
+              />
+              <Trophy className="h-6 w-6 text-yellow-300" />
+            </div>
+            <div>
+              <div className="text-lg font-black tracking-wide text-yellow-200">555 Royal Live</div>
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-100/55">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.9)]" />
+                लाइव फीड चालू
+              </div>
+            </div>
+          </motion.div>
+
+          <div className="hidden items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-yellow-100/80 backdrop-blur md:flex">
+            <Clock3 className="h-4 w-4 text-yellow-300" />
+            <span>{liveClock} भारतीय समय</span>
+          </div>
+        </nav>
+
+        <motion.div
+          className="grid gap-6 pb-4 pt-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-end"
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <div>
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-yellow-300/20 bg-yellow-300/10 px-3 py-2 text-xs font-bold uppercase tracking-[0.22em] text-yellow-200">
+              <Sparkles className="h-4 w-4" />
+              लाइव परिणाम और तेज अपडेट
+            </div>
+            <h1 className="max-w-3xl text-4xl font-black leading-tight text-white sm:text-5xl lg:text-7xl">
+              प्रीमियम डार्क-गोल्ड डैशबोर्ड में लाइव मार्केट परिणाम, तेज और साफ।
+            </h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
+              मार्केट नंबर, पुराना रिकॉर्ड, समय-सारणी और चार्ट विश्लेषण, सब एक मोबाइल-फर्स्ट डैशबोर्ड में।
+            </p>
+          </div>
+
+          <div className="rounded-[2rem] border border-yellow-300/20 bg-white/[0.055] p-4 shadow-[0_0_80px_rgba(212,175,55,0.18)] backdrop-blur-xl">
+            <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-yellow-100/55">
+              <span>आज का मुख्य संकेत</span>
+              <span className="flex items-center gap-1 text-emerald-300">
+                <Radio className="h-3.5 w-3.5" />
+                ऑनलाइन
+              </span>
+            </div>
+            <div className="mt-5 flex items-end justify-between gap-4">
+              <div>
+                <div className="text-2xl font-black text-yellow-200">{getGameName(latestResult)}</div>
+                <div className="mt-1 text-sm text-slate-400">{latestResult.resultTime || latestResult.time || 'अपडेट हो रहा है'}</div>
+              </div>
+              <motion.div
+                className="text-6xl font-black tabular-nums text-yellow-300 drop-shadow-[0_0_24px_rgba(250,204,21,0.5)]"
+                animate={{ scale: loading ? [1, 1.03, 1] : [1, 1.08, 1] }}
+                transition={{ duration: 1.8, repeat: Infinity }}
+              >
+                {loading ? '..' : getResultText(latestResult)}
+              </motion.div>
+            </div>
+          </div>
+        </motion.div>
       </div>
-      <div className="flex items-center gap-2">
-        <div className="h-10 w-14 bg-neutral-800/50 rounded-lg animate-pulse" />
-        <div className="h-10 w-12 bg-neutral-800/40 rounded-full animate-pulse" />
+      <ResultTicker games={allGames} />
+    </header>
+  );
+}
+
+function ResultTicker({ games }: { games: Game[] }) {
+  const tickerItems = (games.length ? games : sampleGames).map((game) => `${getGameName(game)} ${getResultText(game)}`);
+  const tickerText = [...tickerItems, ...tickerItems].join('   |   ');
+
+  return (
+    <div className="relative mt-3 overflow-hidden border-y border-yellow-300/15 bg-black/45 py-3">
+      <motion.div
+        className="whitespace-nowrap text-sm font-bold uppercase tracking-[0.16em] text-yellow-100/80"
+        animate={{ x: ['0%', '-50%'] }}
+        transition={{ duration: 28, repeat: Infinity, ease: 'linear' }}
+      >
+        {tickerText}
+      </motion.div>
+    </div>
+  );
+}
+
+function LiveResultCard({
+  result,
+  nextGame,
+  todayGameDate,
+  loading,
+  clockTick
+}: {
+  result: Game;
+  nextGame: Game | null;
+  todayGameDate: string;
+  loading: boolean;
+  clockTick: number;
+}) {
+  return (
+    <motion.section
+      id="live"
+      className="relative rounded-[2rem] border border-yellow-300/20 bg-gradient-to-br from-white/[0.09] via-white/[0.045] to-yellow-500/[0.08] p-5 shadow-[0_0_100px_rgba(212,175,55,0.18)] backdrop-blur-xl md:p-7"
+      initial={{ opacity: 0, y: 18 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+    >
+      <div className="absolute inset-0 rounded-[2rem] border border-yellow-200/10 shadow-[inset_0_0_45px_rgba(250,204,21,0.08)]" />
+      <div className="relative grid gap-6 lg:grid-cols-[1fr_320px]">
+        <div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.22em] text-emerald-300">
+                <motion.span
+                  className="h-2.5 w-2.5 rounded-full bg-emerald-300"
+                  animate={{ boxShadow: ['0 0 0 0 rgba(52,211,153,0.7)', '0 0 0 10px rgba(52,211,153,0)'] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                />
+                लाइव परिणाम
+              </div>
+              <h2 className="mt-3 text-3xl font-black text-white md:text-5xl">{getGameName(result)}</h2>
+            </div>
+            <div className="rounded-2xl border border-yellow-300/20 bg-black/30 px-4 py-3 text-right">
+              <div className="text-xs uppercase tracking-[0.2em] text-yellow-100/45">अपडेट समय</div>
+              <div className="mt-1 text-sm font-bold text-yellow-100">
+                {result.formattedDate || (result.resultDate ? formatGameDate(result.resultDate) : todayGameDate)}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 flex flex-col gap-5 sm:flex-row sm:items-end">
+            <motion.div
+              key={getResultText(result)}
+              className="text-[6rem] font-black leading-none text-yellow-300 drop-shadow-[0_0_34px_rgba(250,204,21,0.6)] md:text-[9rem]"
+              initial={{ opacity: 0, scale: 0.82, y: 14 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ type: 'spring', stiffness: 140, damping: 14 }}
+            >
+              {loading ? '--' : getResultText(result)}
+            </motion.div>
+            <div className="mb-2 grid grid-cols-2 gap-3 sm:min-w-64">
+              <MetricPill label="परिणाम समय" value={result.resultTime || result.time || 'लाइव'} icon={<Clock3 className="h-4 w-4" />} />
+              <MetricPill label="स्थिति" value="सत्यापित" icon={<ShieldCheck className="h-4 w-4" />} />
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-yellow-300/15 bg-[#0B0B0B]/65 p-5">
+          <div className="text-sm font-bold uppercase tracking-[0.2em] text-yellow-100/50">अगला परिणाम</div>
+          <div className="mt-3 text-2xl font-black text-yellow-200">{nextGame ? getGameName(nextGame) : 'प्रतीक्षा'}</div>
+          <div className="mt-1 text-sm text-slate-400">{nextGame?.resultTime || 'समय-सारणी अपडेट हो रही है'}</div>
+          <CountdownTimer targetTime={nextGame?.resultTime || null} clockTick={clockTick} />
+          <div className="mt-5 rounded-2xl bg-yellow-300/10 p-4 text-sm text-yellow-50/75">
+            लाइव सर्वर पर नया मार्केट अपडेट आते ही परिणाम अपने आप रिफ्रेश हो जाएगा।
+          </div>
+        </div>
+      </div>
+    </motion.section>
+  );
+}
+
+function MetricPill({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-3">
+      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-yellow-100/45">
+        {icon}
+        {label}
+      </div>
+      <div className="mt-2 text-lg font-black text-white">{value}</div>
+    </div>
+  );
+}
+
+function CountdownTimer({ targetTime, clockTick }: { targetTime?: string | null; clockTick: number }) {
+  const seconds = useMemo(() => getSecondsUntilResult(targetTime), [targetTime, clockTick]);
+
+  return (
+    <div className="mt-5 rounded-2xl border border-yellow-300/20 bg-black/40 p-4">
+      <div className="text-xs uppercase tracking-[0.2em] text-yellow-100/45">बचा हुआ समय</div>
+      <div className="mt-2 font-mono text-3xl font-black text-yellow-300">{formatDuration(seconds)}</div>
+    </div>
+  );
+}
+
+function UpcomingMarketsSection({ games, clockTick }: { games: Game[]; clockTick: number }) {
+  return (
+    <section className="mt-7">
+      <SectionHeader
+        eyebrow="समय-सारणी"
+        title="आने वाले मार्केट"
+        action={<span className="text-xs text-yellow-100/50">मोबाइल पर स्वाइप करें</span>}
+      />
+      <div className="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0 lg:grid-cols-4">
+        {games.slice(0, 8).map((game, index) => (
+          <motion.div
+            key={game._id || `${getGameName(game)}-${index}`}
+            className="min-w-[78vw] snap-start rounded-3xl border border-yellow-300/15 bg-white/[0.055] p-4 backdrop-blur-xl transition hover:-translate-y-1 hover:border-yellow-300/35 hover:shadow-[0_0_42px_rgba(212,175,55,0.16)] md:min-w-0"
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: index * 0.04 }}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-lg font-black text-white">{getGameName(game)}</div>
+                <div className="mt-1 text-sm text-slate-400">परिणाम समय {game.resultTime || 'जल्द अपडेट'}</div>
+              </div>
+              <StatusBadge status={game.hasResult ? 'published' : 'pending'} />
+            </div>
+            <CountdownTimer targetTime={game.resultTime || null} clockTick={clockTick} />
+          </motion.div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function MarketGrid({ games, loading, onOpenChart }: { games: Game[]; loading: boolean; onOpenChart: (gameName: string) => void }) {
+  return (
+    <section className="mt-9">
+      <SectionHeader eyebrow="मार्केट" title="लाइव मार्केट बोर्ड" />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {(loading ? Array.from({ length: 8 }) : games).map((game, index) => (
+          <MarketCard
+            key={(game as Game)?._id || index}
+            game={game as Game | undefined}
+            loading={loading}
+            index={index}
+            onOpenChart={onOpenChart}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function MarketCard({
+  game,
+  loading,
+  index,
+  onOpenChart
+}: {
+  game?: Game;
+  loading: boolean;
+  index: number;
+  onOpenChart: (gameName: string) => void;
+}) {
+  if (loading || !game) {
+    return (
+      <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+        <SkeletonBlock />
+      </div>
+    );
+  }
+
+  return (
+    <motion.article
+      className="group rounded-3xl border border-yellow-300/15 bg-gradient-to-br from-white/[0.075] to-white/[0.025] p-5 backdrop-blur-xl transition hover:-translate-y-1 hover:border-yellow-300/40 hover:shadow-[0_0_48px_rgba(212,175,55,0.18)]"
+      initial={{ opacity: 0, y: 18 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ delay: index * 0.035 }}
+    >
+      <div className="flex items-start justify-between">
+        <div className="min-w-0">
+          <h3 className="truncate text-xl font-black text-white">{getGameName(game)}</h3>
+          <div className="mt-1 flex items-center gap-2 text-sm text-slate-400">
+            <Clock3 className="h-4 w-4 text-yellow-300" />
+            {game.resultTime || 'जल्द अपडेट'}
+          </div>
+        </div>
+        <div className="rounded-2xl bg-yellow-300/10 p-2 text-yellow-300">
+          <LineChart className="h-5 w-5" />
+        </div>
+      </div>
+
+      <div className="mt-6 flex items-end justify-between">
+        <div>
+          <div className="text-xs uppercase tracking-[0.2em] text-yellow-100/45">अभी का परिणाम</div>
+          <div className="mt-1 text-5xl font-black text-yellow-300 drop-shadow-[0_0_20px_rgba(250,204,21,0.45)]">
+            {getResultText(game)}
+          </div>
+        </div>
+        <TrendIndicator active={Boolean(game.hasResult)} />
+      </div>
+
+      <button
+        type="button"
+        onClick={() => onOpenChart(getGameName(game))}
+        className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-yellow-300/20 bg-yellow-300/10 px-4 text-sm font-black text-yellow-100 transition hover:bg-yellow-300 hover:text-black"
+      >
+        <BarChart3 className="h-4 w-4" />
+        चार्ट / इतिहास
+      </button>
+    </motion.article>
+  );
+}
+
+function TrendIndicator({ active }: { active: boolean }) {
+  return (
+    <div className={`rounded-full px-3 py-1.5 text-xs font-black ${active ? 'bg-emerald-400/15 text-emerald-300' : 'bg-amber-400/15 text-amber-200'}`}>
+      {active ? '+ सक्रिय' : 'लंबित'}
+    </div>
+  );
+}
+
+function HistoryTable({ rows }: { rows: HistoryRow[] }) {
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<'all' | 'published' | 'pending'>('all');
+  const [page, setPage] = useState(1);
+  const pageSize = 5;
+  const filteredRows = rows.filter((row) => {
+    const matchesQuery = `${row.market} ${row.result} ${row.date}`.toLowerCase().includes(query.toLowerCase());
+    const matchesFilter = filter === 'all' || row.status === filter;
+    return matchesQuery && matchesFilter;
+  });
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const activePage = Math.min(page, totalPages);
+  const pageRows = filteredRows.slice((activePage - 1) * pageSize, activePage * pageSize);
+
+  return (
+    <section id="history" className="mt-9">
+      <SectionHeader eyebrow="रिकॉर्ड" title="परिणाम इतिहास" />
+      <div className="rounded-[2rem] border border-yellow-300/15 bg-white/[0.055] p-4 backdrop-blur-xl md:p-6">
+        <div className="mb-5 grid gap-3 md:grid-cols-[1fr_auto]">
+          <div className="flex min-h-12 items-center gap-3 rounded-2xl border border-white/10 bg-black/35 px-4">
+            <Search className="h-5 w-5 text-yellow-300" />
+            <input
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
+              className="w-full bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
+              placeholder="मार्केट, तारीख या नंबर खोजें"
+            />
+          </div>
+          <div className="grid grid-cols-3 rounded-2xl border border-white/10 bg-black/35 p-1">
+            {(['all', 'published', 'pending'] as const).map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => {
+                  setFilter(item);
+                  setPage(1);
+                }}
+                className={`min-h-10 rounded-xl px-3 text-xs font-black capitalize transition ${
+                  filter === item ? 'bg-yellow-300 text-black' : 'text-slate-300 hover:text-yellow-200'
+                }`}
+              >
+                {getFilterLabel(item)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-white/10">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead className="bg-yellow-300/10 text-xs uppercase tracking-[0.18em] text-yellow-100/60">
+              <tr>
+                <th className="px-4 py-4">तारीख</th>
+                <th className="px-4 py-4">मार्केट</th>
+                <th className="px-4 py-4">परिणाम नंबर</th>
+                <th className="px-4 py-4">स्थिति</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/10">
+              {pageRows.map((row) => (
+                <tr key={row.id} className="bg-black/20 transition hover:bg-yellow-300/5">
+                  <td className="px-4 py-4 text-slate-300">{row.date}</td>
+                  <td className="px-4 py-4 font-bold text-white">{row.market}</td>
+                  <td className="px-4 py-4 font-mono text-xl font-black text-yellow-300">{row.result}</td>
+                  <td className="px-4 py-4">
+                    <StatusBadge status={row.status} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-5 flex items-center justify-between">
+          <div className="text-sm text-slate-400">
+            पेज {activePage} / {totalPages}
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-black/30 text-yellow-200 disabled:opacity-40"
+              disabled={activePage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+              className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-black/30 text-yellow-200 disabled:opacity-40"
+              disabled={activePage === totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AnalyticsCharts({ games, onOpenChart }: { games: Game[]; onOpenChart: (gameName: string) => void }) {
+  const marketNames = games.slice(0, 6).map(getGameName);
+  const resultValues = games.slice(0, 6).map((game, index) => Number(game.result) || 18 + index * 9);
+  const weeklyOptions: ApexOptions = {
+    chart: { type: 'area', toolbar: { show: false }, foreColor: '#CBD5E1', background: 'transparent' },
+    theme: { mode: 'dark' },
+    dataLabels: { enabled: false },
+    stroke: { curve: 'smooth', width: 3, colors: ['#FACC15'] },
+    fill: {
+      type: 'gradient',
+      gradient: { shadeIntensity: 1, opacityFrom: 0.42, opacityTo: 0.03, stops: [0, 90, 100] }
+    },
+    grid: { borderColor: 'rgba(255,255,255,0.08)' },
+    xaxis: { categories: marketNames, labels: { style: { colors: '#94A3B8' } } },
+    yaxis: { labels: { style: { colors: '#94A3B8' } } },
+    colors: ['#FACC15'],
+    tooltip: { theme: 'dark' }
+  };
+  const monthlyOptions: ApexOptions = {
+    chart: { type: 'bar', toolbar: { show: false }, foreColor: '#CBD5E1', background: 'transparent' },
+    theme: { mode: 'dark' },
+    plotOptions: { bar: { borderRadius: 8, columnWidth: '45%' } },
+    dataLabels: { enabled: false },
+    grid: { borderColor: 'rgba(255,255,255,0.08)' },
+    xaxis: { categories: marketNames, labels: { style: { colors: '#94A3B8' } } },
+    yaxis: { labels: { style: { colors: '#94A3B8' } } },
+    colors: ['#D4AF37'],
+    tooltip: { theme: 'dark' }
+  };
+
+  return (
+    <section id="charts" className="mt-9">
+      <SectionHeader eyebrow="चार्ट" title="विश्लेषण डैशबोर्ड" />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ChartPanel title="साप्ताहिक परिणाम प्रवाह" icon={<Activity className="h-5 w-5" />}>
+          <ReactApexChart options={weeklyOptions} series={[{ name: 'परिणाम', data: resultValues }]} type="area" height={300} />
+        </ChartPanel>
+        <ChartPanel title="मासिक मार्केट हीट" icon={<BarChart3 className="h-5 w-5" />}>
+          <ReactApexChart options={monthlyOptions} series={[{ name: 'मार्केट हीट', data: resultValues.map((value) => value + 12) }]} type="bar" height={300} />
+        </ChartPanel>
+      </div>
+
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <InsightPanel title="सक्रिय मार्केट" games={games.filter((game) => game.hasResult).slice(0, 4)} onOpenChart={onOpenChart} />
+        <InsightPanel title="ट्रेंडिंग मार्केट" games={[...games].slice(0, 4)} onOpenChart={onOpenChart} />
+      </div>
+    </section>
+  );
+}
+
+function ChartPanel({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="rounded-[2rem] border border-yellow-300/15 bg-white/[0.055] p-5 backdrop-blur-xl">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-yellow-300/10 text-yellow-300">{icon}</div>
+        <h3 className="text-xl font-black text-white">{title}</h3>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function InsightPanel({ title, games, onOpenChart }: { title: string; games: Game[]; onOpenChart: (gameName: string) => void }) {
+  const visibleGames = games.length ? games : sampleGames.slice(0, 4);
+
+  return (
+    <div className="rounded-[2rem] border border-yellow-300/15 bg-white/[0.055] p-5 backdrop-blur-xl">
+      <h3 className="mb-4 text-xl font-black text-white">{title}</h3>
+      <div className="space-y-3">
+        {visibleGames.map((game, index) => (
+          <button
+            key={game._id || `${title}-${index}`}
+            type="button"
+            onClick={() => onOpenChart(getGameName(game))}
+            className="flex min-h-14 w-full items-center justify-between rounded-2xl border border-white/10 bg-black/25 px-4 text-left transition hover:border-yellow-300/30 hover:bg-yellow-300/10"
+          >
+            <span>
+              <span className="block font-bold text-white">{getGameName(game)}</span>
+              <span className="text-xs text-slate-400">{game.resultTime || 'लाइव चालू'}</span>
+            </span>
+            <span className="font-mono text-2xl font-black text-yellow-300">{getResultText(game)}</span>
+          </button>
+        ))}
       </div>
     </div>
   );
+}
+
+function BottomNavigation() {
+  const items = [
+    { label: 'होम', icon: Home, href: '#' },
+    { label: 'लाइव', icon: Radio, href: '#live' },
+    { label: 'इतिहास', icon: History, href: '#history' },
+    { label: 'चार्ट', icon: BarChart3, href: '#charts' },
+    { label: 'संपर्क', icon: Phone, href: '#contact' }
+  ];
+
+  return (
+    <nav className="fixed bottom-3 left-3 right-3 z-40 rounded-3xl border border-yellow-300/20 bg-black/75 p-2 shadow-[0_0_42px_rgba(212,175,55,0.2)] backdrop-blur-xl md:hidden">
+      <div className="grid grid-cols-5 gap-1">
+        {items.map((item, index) => {
+          const Icon = item.icon;
+          return (
+            <a
+              key={item.label}
+              href={item.href}
+              className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-bold ${
+                index === 0 ? 'bg-yellow-300 text-black' : 'text-slate-300'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {item.label}
+            </a>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
+function Footer() {
+  return (
+    <footer id="contact" className="border-t border-yellow-300/15 bg-black/40 px-4 py-10">
+      <div className="mx-auto max-w-7xl">
+        <div className="h-px bg-gradient-to-r from-transparent via-yellow-300/70 to-transparent" />
+        <div className="grid gap-6 py-8 md:grid-cols-[1fr_auto] md:items-center">
+          <div>
+            <div className="text-2xl font-black text-yellow-200">555 Royal Live</div>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+              यह वेबसाइट केवल जानकारी के लिए मार्केट परिणाम दिखाती है। जिम्मेदारी से उपयोग करें। 18+ केवल। जुआ लत लगा सकता है।
+            </p>
+            <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-400">
+              <span>गोपनीयता नीति</span>
+              <span>नियम और शर्तें</span>
+              <span>जिम्मेदार गेमिंग</span>
+              <Link to="/archives" className="text-yellow-300 hover:text-yellow-200">पुराना रिकॉर्ड</Link>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <a href="https://t.me/" className="flex min-h-12 items-center gap-2 rounded-2xl border border-yellow-300/20 bg-yellow-300/10 px-4 font-black text-yellow-100">
+              <Bell className="h-5 w-5" />
+              Telegram
+            </a>
+            <a href="https://wa.me/" className="flex min-h-12 items-center gap-2 rounded-2xl bg-emerald-400 px-4 font-black text-black">
+              <MessageCircle className="h-5 w-5" />
+              WhatsApp
+            </a>
+          </div>
+        </div>
+        <div className="text-sm text-slate-500">कॉपीराइट 2026 555 Royal Live. सभी अधिकार सुरक्षित।</div>
+      </div>
+    </footer>
+  );
+}
+
+function SectionHeader({ eyebrow, title, action }: { eyebrow: string; title: string; action?: React.ReactNode }) {
+  return (
+    <div className="mb-4 flex items-end justify-between gap-3">
+      <div>
+        <div className="text-xs font-black uppercase tracking-[0.24em] text-yellow-300/70">{eyebrow}</div>
+        <h2 className="mt-1 text-2xl font-black text-white md:text-3xl">{title}</h2>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: 'published' | 'pending' }) {
+  return (
+    <span className={`rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.12em] ${
+      status === 'published' ? 'bg-emerald-400/15 text-emerald-300' : 'bg-yellow-300/15 text-yellow-200'
+    }`}>
+      {status === 'published' ? 'प्रकाशित' : 'लंबित'}
+    </span>
+  );
+}
+
+function SkeletonBlock() {
+  return (
+    <div className="animate-pulse space-y-4">
+      <div className="h-5 w-2/3 rounded bg-white/10" />
+      <div className="h-4 w-1/2 rounded bg-white/10" />
+      <div className="h-14 w-full rounded-2xl bg-yellow-300/10" />
+      <div className="h-11 w-full rounded-2xl bg-white/10" />
+    </div>
+  );
+}
+
+function buildHistoryRows(games: Game[]): HistoryRow[] {
+  const date = new Intl.DateTimeFormat('hi-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  }).format(new Date());
+
+  return games.map((game, index) => ({
+    id: game._id || `${getGameName(game)}-${index}`,
+    date: game.formattedDate || (game.resultDate ? formatGameDate(game.resultDate) : date),
+    market: getGameName(game),
+    result: getResultText(game),
+    status: game.hasResult ? 'published' : 'pending'
+  }));
 }
 
 export default HomeDefault;
