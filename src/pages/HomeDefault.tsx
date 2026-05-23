@@ -1,5 +1,4 @@
 import {
-  Activity,
   BarChart3,
   Bell,
   ChevronLeft,
@@ -17,8 +16,6 @@ import {
   Trophy
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import ReactApexChart from 'react-apexcharts';
-import type { ApexOptions } from 'apexcharts';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import GameChart from '../components/GameChart';
@@ -44,15 +41,6 @@ type HistoryRow = {
   result: string;
   status: 'published' | 'pending';
 };
-
-const sampleGames: Game[] = [
-  { _id: 'sample-1', nickName: 'Delhi Bazar', result: '42', resultTime: '03:00 PM', hasResult: true },
-  { _id: 'sample-2', nickName: 'Shri Ganesh', result: '18', resultTime: '04:20 PM', hasResult: true },
-  { _id: 'sample-3', nickName: 'Faridabad', result: '77', resultTime: '05:50 PM', hasResult: true },
-  { _id: 'sample-4', nickName: 'Ghaziabad', result: '29', resultTime: '08:40 PM', hasResult: true },
-  { _id: 'sample-5', nickName: 'Gali', resultTime: '11:10 PM', hasResult: false },
-  { _id: 'sample-6', nickName: 'Disawar', resultTime: '02:00 AM', hasResult: false }
-];
 
 function parseResultTimeToMinutes(time?: string | null) {
   if (!time) return Number.MAX_SAFE_INTEGER;
@@ -145,13 +133,13 @@ function HomeDefault() {
   const [clockTick, setClockTick] = useState(() => Date.now());
   const isFirstLoad = useRef(true);
 
-  const visibleGames = allGames.length ? allGames : sampleGames;
+  const visibleGames = allGames;
   const scheduledGames = useMemo(() => sortGamesByResultTimeAsc(visibleGames), [visibleGames]);
   const nextUpcomingGame =
     scheduledGames.find((game) => parseResultTimeToMinutes(game.resultTime) >= getCurrentISTGameTimeSortValue()) ||
     scheduledGames[0] ||
     null;
-  const featuredResult = latestResult || todaysResults[0] || visibleGames.find((game) => game.hasResult) || sampleGames[0];
+  const featuredResult = latestResult || todaysResults[0] || visibleGames.find((game) => game.hasResult) || null;
   const historyRows = useMemo(() => buildHistoryRows(todaysResults.length ? todaysResults : visibleGames), [todaysResults, visibleGames]);
 
   useEffect(() => {
@@ -179,7 +167,7 @@ function HomeDefault() {
         setError(null);
       } catch (fetchError) {
         console.error('Error fetching data:', fetchError);
-        setError('लाइव फीड फिर से जुड़ रही है। अभी नमूना बोर्ड दिखाया जा रहा है।');
+        setError('लाइव फीड से कनेक्शन नहीं हो पा रहा है। कृपया कुछ देर बाद फिर देखें।');
       } finally {
         if (isFirstLoad.current) {
           setLoading(false);
@@ -255,7 +243,6 @@ function HomeDefault() {
         <UpcomingMarketsSection games={upcomingGames.length ? upcomingGames : scheduledGames.slice(0, 6)} clockTick={clockTick} />
         <MarketGrid games={visibleGames} loading={loading} onOpenChart={setSelectedGameForChart} />
         <HistoryTable rows={historyRows} />
-        <AnalyticsCharts games={visibleGames} onOpenChart={setSelectedGameForChart} />
       </main>
 
       <Footer />
@@ -304,7 +291,7 @@ function HeroSection({
   clockTick,
   loading
 }: {
-  latestResult: Game;
+  latestResult: Game | null;
   allGames: Game[];
   clockTick: number;
   loading: boolean;
@@ -363,10 +350,10 @@ function HeroSection({
               लाइव परिणाम और तेज अपडेट
             </div>
             <h1 className="max-w-3xl text-4xl font-black leading-tight text-white sm:text-5xl lg:text-7xl">
-              प्रीमियम डार्क-गोल्ड डैशबोर्ड में लाइव मार्केट परिणाम, तेज और साफ।
+              आज के सभी मार्केट परिणाम एक ही जगह।
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
-              मार्केट नंबर, पुराना रिकॉर्ड, समय-सारणी और चार्ट विश्लेषण, सब एक मोबाइल-फर्स्ट डैशबोर्ड में।
+              नया परिणाम आते ही यहाँ अपडेट दिखेगा। समय-सारणी, पुराने परिणाम और चार्ट भी साथ में देखें।
             </p>
           </div>
 
@@ -381,7 +368,7 @@ function HeroSection({
             <div className="mt-5 flex items-end justify-between gap-4">
               <div>
                 <div className="text-2xl font-black text-yellow-200">{getGameName(latestResult)}</div>
-                <div className="mt-1 text-sm text-slate-400">{latestResult.resultTime || latestResult.time || 'अपडेट हो रहा है'}</div>
+                <div className="mt-1 text-sm text-slate-400">{latestResult?.resultTime || latestResult?.time || 'अपडेट का इंतजार है'}</div>
               </div>
               <motion.div
                 className="text-6xl font-black tabular-nums text-yellow-300 drop-shadow-[0_0_24px_rgba(250,204,21,0.5)]"
@@ -400,7 +387,7 @@ function HeroSection({
 }
 
 function ResultTicker({ games }: { games: Game[] }) {
-  const tickerItems = (games.length ? games : sampleGames).map((game) => `${getGameName(game)} ${getResultText(game)}`);
+  const tickerItems = games.map((game) => `${getGameName(game)} ${getResultText(game)}`);
   const tickerText = [...tickerItems, ...tickerItems].join('   |   ');
 
   return (
@@ -410,7 +397,7 @@ function ResultTicker({ games }: { games: Game[] }) {
         animate={{ x: ['0%', '-50%'] }}
         transition={{ duration: 28, repeat: Infinity, ease: 'linear' }}
       >
-        {tickerText}
+        {tickerText || 'लाइव मार्केट अपडेट का इंतजार है'}
       </motion.div>
     </div>
   );
@@ -423,7 +410,7 @@ function LiveResultCard({
   loading,
   clockTick
 }: {
-  result: Game;
+  result: Game | null;
   nextGame: Game | null;
   todayGameDate: string;
   loading: boolean;
@@ -455,7 +442,7 @@ function LiveResultCard({
             <div className="rounded-2xl border border-yellow-300/20 bg-black/30 px-4 py-3 text-right">
               <div className="text-xs uppercase tracking-[0.2em] text-yellow-100/45">अपडेट समय</div>
               <div className="mt-1 text-sm font-bold text-yellow-100">
-                {result.formattedDate || (result.resultDate ? formatGameDate(result.resultDate) : todayGameDate)}
+                {result?.formattedDate || (result?.resultDate ? formatGameDate(result.resultDate) : todayGameDate)}
               </div>
             </div>
           </div>
@@ -471,7 +458,7 @@ function LiveResultCard({
               {loading ? '--' : getResultText(result)}
             </motion.div>
             <div className="mb-2 grid grid-cols-2 gap-3 sm:min-w-64">
-              <MetricPill label="परिणाम समय" value={result.resultTime || result.time || 'लाइव'} icon={<Clock3 className="h-4 w-4" />} />
+              <MetricPill label="परिणाम समय" value={result?.resultTime || result?.time || 'लाइव'} icon={<Clock3 className="h-4 w-4" />} />
               <MetricPill label="स्थिति" value="सत्यापित" icon={<ShieldCheck className="h-4 w-4" />} />
             </div>
           </div>
@@ -523,6 +510,9 @@ function UpcomingMarketsSection({ games, clockTick }: { games: Game[]; clockTick
         action={<span className="text-xs text-yellow-100/50">मोबाइल पर स्वाइप करें</span>}
       />
       <div className="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0 lg:grid-cols-4">
+        {games.length === 0 && (
+          <EmptyState message="अभी आने वाले मार्केट की जानकारी उपलब्ध नहीं है।" />
+        )}
         {games.slice(0, 8).map((game, index) => (
           <motion.div
             key={game._id || `${getGameName(game)}-${index}`}
@@ -552,6 +542,11 @@ function MarketGrid({ games, loading, onOpenChart }: { games: Game[]; loading: b
     <section className="mt-9">
       <SectionHeader eyebrow="मार्केट" title="लाइव मार्केट बोर्ड" />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {!loading && games.length === 0 && (
+          <div className="md:col-span-2 xl:col-span-4">
+            <EmptyState message="अभी कोई लाइव मार्केट उपलब्ध नहीं है।" />
+          </div>
+        )}
         {(loading ? Array.from({ length: 8 }) : games).map((game, index) => (
           <MarketCard
             key={(game as Game)?._id || index}
@@ -740,8 +735,9 @@ function HistoryTable({ rows }: { rows: HistoryRow[] }) {
 }
 
 function AnalyticsCharts({ games, onOpenChart }: { games: Game[]; onOpenChart: (gameName: string) => void }) {
-  const marketNames = games.slice(0, 6).map(getGameName);
-  const resultValues = games.slice(0, 6).map((game, index) => Number(game.result) || 18 + index * 9);
+  const chartGames = games.filter((game) => game.result !== undefined && game.result !== null && game.result !== '').slice(0, 6);
+  const marketNames = chartGames.map(getGameName);
+  const resultValues = chartGames.map((game) => Number(game.result) || 0);
   const weeklyOptions: ApexOptions = {
     chart: { type: 'area', toolbar: { show: false }, foreColor: '#CBD5E1', background: 'transparent' },
     theme: { mode: 'dark' },
@@ -771,13 +767,20 @@ function AnalyticsCharts({ games, onOpenChart }: { games: Game[]; onOpenChart: (
 
   return (
     <section id="charts" className="mt-9">
-      <SectionHeader eyebrow="चार्ट" title="विश्लेषण डैशबोर्ड" />
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartPanel title="साप्ताहिक परिणाम प्रवाह" icon={<Activity className="h-5 w-5" />}>
-          <ReactApexChart options={weeklyOptions} series={[{ name: 'परिणाम', data: resultValues }]} type="area" height={300} />
+          {resultValues.length ? (
+            <ReactApexChart options={weeklyOptions} series={[{ name: 'परिणाम', data: resultValues }]} type="area" height={300} />
+          ) : (
+            <EmptyState message="चार्ट के लिए अभी परिणाम उपलब्ध नहीं हैं।" />
+          )}
         </ChartPanel>
         <ChartPanel title="मासिक मार्केट हीट" icon={<BarChart3 className="h-5 w-5" />}>
-          <ReactApexChart options={monthlyOptions} series={[{ name: 'मार्केट हीट', data: resultValues.map((value) => value + 12) }]} type="bar" height={300} />
+          {resultValues.length ? (
+            <ReactApexChart options={monthlyOptions} series={[{ name: 'मार्केट हीट', data: resultValues }]} type="bar" height={300} />
+          ) : (
+            <EmptyState message="चार्ट के लिए अभी परिणाम उपलब्ध नहीं हैं।" />
+          )}
         </ChartPanel>
       </div>
 
@@ -802,13 +805,12 @@ function ChartPanel({ title, icon, children }: { title: string; icon: React.Reac
 }
 
 function InsightPanel({ title, games, onOpenChart }: { title: string; games: Game[]; onOpenChart: (gameName: string) => void }) {
-  const visibleGames = games.length ? games : sampleGames.slice(0, 4);
-
   return (
     <div className="rounded-[2rem] border border-yellow-300/15 bg-white/[0.055] p-5 backdrop-blur-xl">
       <h3 className="mb-4 text-xl font-black text-white">{title}</h3>
       <div className="space-y-3">
-        {visibleGames.map((game, index) => (
+        {games.length === 0 && <EmptyState message="अभी जानकारी उपलब्ध नहीं है।" />}
+        {games.map((game, index) => (
           <button
             key={game._id || `${title}-${index}`}
             type="button"
@@ -832,13 +834,12 @@ function BottomNavigation() {
     { label: 'होम', icon: Home, href: '#' },
     { label: 'लाइव', icon: Radio, href: '#live' },
     { label: 'इतिहास', icon: History, href: '#history' },
-    { label: 'चार्ट', icon: BarChart3, href: '#charts' },
     { label: 'संपर्क', icon: Phone, href: '#contact' }
   ];
 
   return (
     <nav className="fixed bottom-3 left-3 right-3 z-40 rounded-3xl border border-yellow-300/20 bg-black/75 p-2 shadow-[0_0_42px_rgba(212,175,55,0.2)] backdrop-blur-xl md:hidden">
-      <div className="grid grid-cols-5 gap-1">
+      <div className="grid grid-cols-4 gap-1">
         {items.map((item, index) => {
           const Icon = item.icon;
           return (
@@ -913,6 +914,14 @@ function StatusBadge({ status }: { status: 'published' | 'pending' }) {
     }`}>
       {status === 'published' ? 'प्रकाशित' : 'लंबित'}
     </span>
+  );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="rounded-3xl border border-yellow-300/15 bg-black/25 p-5 text-center text-sm text-slate-300">
+      {message}
+    </div>
   );
 }
 
