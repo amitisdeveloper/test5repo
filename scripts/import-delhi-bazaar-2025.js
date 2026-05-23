@@ -19,7 +19,7 @@ function getOptionValue(name) {
 
 const positionalArgs = process.argv.slice(2).filter((arg) => !arg.startsWith('--'));
 const WORKBOOK_PATH = positionalArgs[0] || 'd:\\reactapps\\tempproj\\figma\\555 games app\\resultdata\\delhi_bazar_2025_raw_year_matrix_v2.xlsx';
-const YEAR = 2025;
+const YEAR = Number(getOptionValue('--year') || 2025);
 const GAME_NICK_NAME = getOptionValue('--game') || 'Delhi Bazaar';
 const DRY_RUN = process.argv.includes('--dry-run');
 
@@ -58,6 +58,10 @@ function columnToNumber(column) {
 
 function daysInMonth(year, month) {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function daysInYear(year) {
+  return Math.round((Date.UTC(year + 1, 0, 1) - Date.UTC(year, 0, 1)) / 86400000);
 }
 
 function extractWorkbook(workbookPath) {
@@ -252,7 +256,7 @@ function parseSheetRows(sheetRows) {
         continue;
       }
 
-      if (rawValue !== '--' && rawValue.toLowerCase() !== 'wait' && !/^\d{1,3}$/.test(rawValue)) {
+      if (rawValue !== '--' && rawValue !== '##' && rawValue.toLowerCase() !== 'wait' && !/^\d{1,3}$/.test(rawValue)) {
         invalidValues.push({ date: `${YEAR}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`, value: rawValue });
         continue;
       }
@@ -288,8 +292,10 @@ async function main() {
     throw new Error(`Invalid result values found: ${JSON.stringify(invalidValues.slice(0, 10))}`);
   }
 
-  if (rows.length !== 365) {
-    throw new Error(`Expected 365 valid calendar rows, found ${rows.length}`);
+  const expectedRows = daysInYear(YEAR);
+
+  if (rows.length !== expectedRows) {
+    throw new Error(`Expected ${expectedRows} valid calendar rows, found ${rows.length}`);
   }
 
   const client = new MongoClient(process.env.MONGODB_URI, {
@@ -388,6 +394,7 @@ async function main() {
       workbookPath: WORKBOOK_PATH,
       parsedRows: rows.length,
       literalDashRows: rows.filter((row) => row.publishedNumber === '--').length,
+      literalHashRows: rows.filter((row) => row.publishedNumber === '##').length,
       literalWaitRows: rows.filter((row) => row.publishedNumber.toLowerCase() === 'wait').length,
       storedDateRule: game.nickName === 'Disawar' ? 'source date + 1 day' : 'source date',
       invalidCalendarCellsIgnored: invalidCalendarCells.length,
