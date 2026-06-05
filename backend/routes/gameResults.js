@@ -5,6 +5,16 @@ const eventEmitter = require('../utils/eventEmitter');
 const { getGameDayStart, getGameDayEnd } = require('../utils/timezone');
 const router = express.Router();
 
+const PLACEHOLDER_PUBLISHED_NUMBERS = ['--', '-'];
+
+const normalizePublishedNumber = (value) => value.toString().trim();
+
+const isPlaceholderPublishedNumber = (value) => {
+  if (value === undefined || value === null) return true;
+  const normalized = normalizePublishedNumber(value);
+  return normalized === '' || PLACEHOLDER_PUBLISHED_NUMBERS.includes(normalized);
+};
+
 // Middleware to verify JWT token
 const verifyToken = async (req, res, next) => {
   const jwt = require('jsonwebtoken');
@@ -37,8 +47,13 @@ router.post('/', verifyToken, verifyAdmin, async (req, res) => {
     const { gameId, publishDate, publishedNumber } = req.body;
 
     // Validate required fields
-    if (!gameId || !publishDate || !publishedNumber) {
+    if (!gameId || !publishDate || publishedNumber === undefined || publishedNumber === null) {
       return res.status(400).json({ error: 'gameId, publishDate, and publishedNumber are required' });
+    }
+
+    const normalizedPublishedNumber = normalizePublishedNumber(publishedNumber);
+    if (isPlaceholderPublishedNumber(normalizedPublishedNumber)) {
+      return res.status(400).json({ error: 'A valid published number is required' });
     }
 
     // Verify the game exists
@@ -76,31 +91,31 @@ router.post('/', verifyToken, verifyAdmin, async (req, res) => {
     }
     console.log('🕒 =========================');
 
-    if (existingResult) {
-      return res.status(409).json({ error: 'A result for this game already exists on this dated' });
+    if (existingResult && !isPlaceholderPublishedNumber(existingResult.publishedNumber)) {
+      return res.status(409).json({ error: 'A result for this game already exists on this date' });
     }
 
-    const newResult = new GamePublishedResult({
+    const result = existingResult || new GamePublishedResult({
       gameId,
       publishDate: dateStart,
-      publishedNumber: publishedNumber.toString(),
       createdBy: req.user.userId
     });
 
-    await newResult.save();
-    await newResult.populate([
+    result.publishedNumber = normalizedPublishedNumber;
+    await result.save();
+    await result.populate([
       { path: 'gameId', select: 'name nickName' },
       { path: 'createdBy', select: 'username' }
     ]);
 
-    eventEmitter.emit('result-posted', { type: 'result-posted', gameId, publishedNumber });
+    eventEmitter.emit('result-posted', { type: 'result-posted', gameId, publishedNumber: normalizedPublishedNumber });
 
-    res.status(201).json(newResult);
+    res.status(existingResult ? 200 : 201).json(result);
   } catch (error) {
     console.error('Create published result error:', error);
     // Handle Mongoose unique constraint error
     if (error.code === 11000) {
-      return res.status(409).json({ error: 'A result for this game already exists on this datee' });
+      return res.status(409).json({ error: 'A result for this game already exists on this date' });
     }
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -124,8 +139,12 @@ router.get('/', async (req, res) => {
   }
 
   try {
-    const { page = 1, limit = 10, startDate, endDate, gameId } = req.query;
+    const { page = 1, limit = 10, startDate, endDate, gameId, includePlaceholders } = req.query;
     const query = {};
+
+    if (includePlaceholders !== 'true') {
+      query.publishedNumber = { $nin: [...PLACEHOLDER_PUBLISHED_NUMBERS, ''] };
+    }
 
     if (startDate || endDate) {
       query.publishDate = {};

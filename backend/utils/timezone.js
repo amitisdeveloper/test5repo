@@ -88,12 +88,25 @@ function getGameDateForTime(date) {
 /**
  * Legacy functions - now use single IST boundary
  */
-function getGameDayStart(gameDate) {
-  return startOfDayIST();
+function getGameDayStart(gameDate = getGameDate()) {
+  const gameDateIST = dayjs(gameDate).tz(IST_TIMEZONE).startOf('day');
+  return gameDateIST
+    .hour(GAME_DAY_START)
+    .minute(0)
+    .second(0)
+    .millisecond(0)
+    .toDate();
 }
 
-function getGameDayEnd(gameDate) {
-  return endOfDayIST();
+function getGameDayEnd(gameDate = getGameDate()) {
+  const gameDateIST = dayjs(gameDate).tz(IST_TIMEZONE).startOf('day');
+  return gameDateIST
+    .add(1, 'day')
+    .hour(GAME_DAY_RESET - 1)
+    .minute(59)
+    .second(59)
+    .millisecond(999)
+    .toDate();
 }
 
 function formatGameDate(date) {
