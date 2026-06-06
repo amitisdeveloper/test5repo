@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
-import { formatGameDate } from '../utils/timezone';
+import { formatGameDate, formatGameDateTime } from '../utils/timezone';
 import TimePicker from './TimePicker';
 import { useAdminPresence } from '../hooks/useAdminPresence';
 
@@ -9,6 +9,8 @@ interface Game {
   _id: string;
   nickName: string;
   isActive: boolean;
+  inactiveAt?: string | null;
+  updatedAt?: string;
   resultTime?: string | null;
   resultDate?: Date | null;
   latestResult?: {
@@ -30,6 +32,10 @@ interface PaginationInfo {
 interface ApiResponse {
   games: Game[];
   pagination: PaginationInfo;
+  statusCounts?: {
+    active: number;
+    inactive: number;
+  };
   filters: {
     startDate?: string;
     endDate?: string;
@@ -280,6 +286,7 @@ function GameModal({ isOpen, onClose, game, mode, onSubmit }: GameModalProps) {
 function AdminDashboard() {
   const [games, setGames] = useState<Game[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
+  const [statusCounts, setStatusCounts] = useState({ active: 0, inactive: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -288,7 +295,8 @@ function AdminDashboard() {
   const [filters, setFilters] = useState({
     startDate: '',
     endDate: '',
-    search: ''
+    search: '',
+    status: 'active'
   });
 
   // Modal states
@@ -349,12 +357,14 @@ function AdminDashboard() {
       const gamesArray = Array.isArray(data.games) ? data.games : [];
       setGames(gamesArray);
       setPagination(data.pagination || null);
+      setStatusCounts(data.statusCounts || { active: 0, inactive: 0 });
       setError('');
     } catch (err) {
       console.error('Error fetching games:', err);
       setError(`Failed to fetch games: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setGames([]);
       setPagination(null);
+      setStatusCounts({ active: 0, inactive: 0 });
     } finally {
       setLoading(false);
     }
@@ -474,6 +484,37 @@ function AdminDashboard() {
     }
   };
 
+  const handleReactivateGame = async (gameId: string) => {
+    try {
+      setError('');
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE}/games/${gameId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isActive: true }),
+      });
+
+      if (response.status === 401) {
+        localStorage.removeItem('token');
+        navigate('/admin/login');
+        return;
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      setSuccess('Game activated successfully!');
+      await fetchGames(pagination?.currentPage || 1);
+    } catch (err) {
+      setError(`Failed to activate game: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
   const handlePublishResult = async (data: any) => {
     try {
       setError('');
@@ -513,9 +554,13 @@ function AdminDashboard() {
     setFilters({
       startDate: '',
       endDate: '',
-      search: ''
+      search: '',
+      status: 'active'
     });
-    fetchGames(1);
+  };
+
+  const handleStatusTabChange = (status: 'active' | 'inactive') => {
+    setFilters(prev => ({ ...prev, status }));
   };
 
   const handlePageChange = (page: number) => {
@@ -671,29 +716,52 @@ function AdminDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-gradient-to-br from-blue-950/70 via-neutral-900 to-blue-950/70 rounded-lg p-4 border border-blue-600/30">
             <div className="text-blue-400 text-sm font-medium">Total Games</div>
-            <div className="text-2xl font-bold text-white">{pagination?.totalItems || 0}</div>
-          </div>
-          <div className="bg-gradient-to-br from-green-950/70 via-neutral-900 to-green-950/70 rounded-lg p-4 border border-green-600/30">
-            <div className="text-green-400 text-sm font-medium">Active Games</div>
             <div className="text-2xl font-bold text-white">
-              {games.filter(g => g.isActive && !g.latestResult).length}
+              {statusCounts.active + statusCounts.inactive}
             </div>
           </div>
+          <button
+            type="button"
+            aria-pressed={filters.status === 'active'}
+            onClick={() => handleStatusTabChange('active')}
+            className={`text-left bg-gradient-to-br from-green-950/70 via-neutral-900 to-green-950/70 rounded-lg p-4 border transition-all duration-200 ${
+              filters.status === 'active'
+                ? 'border-green-400 ring-2 ring-green-500/40 shadow-lg shadow-green-950/40'
+                : 'border-green-600/30 hover:border-green-500/70'
+            }`}
+          >
+            <div className="text-green-400 text-sm font-medium">Active Games</div>
+            <div className="text-2xl font-bold text-white">
+              {statusCounts.active}
+            </div>
+          </button>
           <div className="bg-gradient-to-br from-purple-950/70 via-neutral-900 to-purple-950/70 rounded-lg p-4 border border-purple-600/30">
             <div className="text-purple-400 text-sm font-medium">Completed</div>
             <div className="text-2xl font-bold text-white">
               {games.filter(g => g.latestResult).length}
             </div>
           </div>
-          <div className="bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 rounded-lg p-4 border border-amber-600/30">
+          <button
+            type="button"
+            aria-pressed={filters.status === 'inactive'}
+            onClick={() => handleStatusTabChange('inactive')}
+            className={`text-left bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 rounded-lg p-4 border transition-all duration-200 ${
+              filters.status === 'inactive'
+                ? 'border-amber-400 ring-2 ring-amber-500/40 shadow-lg shadow-amber-950/40'
+                : 'border-amber-600/30 hover:border-amber-500/70'
+            }`}
+          >
             <div className="text-amber-400 text-sm font-medium">Inactive</div>
             <div className="text-2xl font-bold text-white">
-              {games.filter(g => !g.isActive).length}
+              {statusCounts.inactive}
             </div>
-          </div>
+          </button>
         </div>
 
         {/* Game Cards */}
+        <h3 className="text-lg font-semibold text-yellow-400 mb-4">
+          {filters.status === 'inactive' ? 'Inactive Games' : 'Active Games'}
+        </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {Array.isArray(games) && games.map(game => (
             <div key={game._id} className="bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 rounded-lg p-6 border-2 border-yellow-600/40">
@@ -716,6 +784,16 @@ function AdminDashboard() {
               )}
 
               <div className="text-sm text-gray-300">
+                {!game.isActive && (game.inactiveAt || game.updatedAt) && (
+                  <div className="mb-3 p-3 bg-red-950/40 border border-red-600/30 rounded-lg">
+                    <p className="text-red-300 text-xs font-medium uppercase tracking-wide">
+                      Made Inactive
+                    </p>
+                    <p className="text-white font-semibold mt-1">
+                      {formatGameDateTime(game.inactiveAt || game.updatedAt!)}
+                    </p>
+                  </div>
+                )}
                 {game.latestResult && (
                   <div className="p-2 bg-green-900/20 border border-green-600/30 rounded">
                     <p className="text-green-400 font-semibold">Latest Result: {game.latestResult.result}</p>
@@ -733,17 +811,31 @@ function AdminDashboard() {
                 >
                   Edit
                 </button>
-                <button
-                  onClick={() => handleDeleteGame(game._id)}
-                  className="flex-1 bg-gradient-to-r from-red-600 to-red-700 text-white px-3 py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300 text-sm"
-                >
-                  Delete
-                </button>
+                {game.isActive ? (
+                  <button
+                    onClick={() => handleDeleteGame(game._id)}
+                    className="flex-1 bg-gradient-to-r from-red-600 to-red-700 text-white px-3 py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300 text-sm"
+                  >
+                    Delete
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleReactivateGame(game._id)}
+                    className="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white px-3 py-2 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300 text-sm"
+                  >
+                    Activate
+                  </button>
+                )}
               </div>
             </div>
           ))}
         </div>
 
+        {games.length === 0 && (
+          <div className="text-center text-gray-400 bg-neutral-900/60 border border-yellow-600/20 rounded-lg p-8 mb-8">
+            No {filters.status === 'inactive' ? 'inactive' : 'active'} games found.
+          </div>
+        )}
 
         {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (

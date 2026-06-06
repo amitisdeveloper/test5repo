@@ -66,6 +66,18 @@ const sortGamesByResultTimeAsc = (games) => [...games].sort((a, b) => {
   return String(a.nickName || a.name || '').localeCompare(String(b.nickName || b.name || ''));
 });
 
+const sortGamesByInactiveDateDesc = (games) => [...games].sort((a, b) => {
+  const aInactiveTime = new Date(a.inactiveAt || a.updatedAt || 0).getTime();
+  const bInactiveTime = new Date(b.inactiveAt || b.updatedAt || 0).getTime();
+  const timeDiff = bInactiveTime - aInactiveTime;
+
+  if (timeDiff !== 0) {
+    return timeDiff;
+  }
+
+  return String(a.nickName || a.name || '').localeCompare(String(b.nickName || b.name || ''));
+});
+
 router.use((req, res, next) => {
   console.log(`\n[${new Date().toISOString()}] ${req.method} ${req.path}`);
   next();
@@ -107,7 +119,7 @@ router.get('/', async (req, res) => {
     console.log('Server Time (Local):', new Date().toLocaleString());
     
     const { status } = req.query;
-    const query = { isActive: true };
+    const query = { isActive: true, archivedAt: null };
 
     if (status) {
       query.status = status;
@@ -198,29 +210,30 @@ router.get('/', async (req, res) => {
 router.get('/admin', verifyToken, async (req, res) => {
   try {
     const { page = 1, limit = 9, search, status } = req.query;
-    const query = { isActive: true };
+    const baseQuery = { archivedAt: null };
 
     // Add search functionality
     if (search) {
-      query.$or = [
+      baseQuery.$or = [
         { nickName: { $regex: search, $options: 'i' } },
         { description: { $regex: search, $options: 'i' } }
       ];
     }
 
-    // Add status filter - ensure isActive: true is always maintained
+    const query = { ...baseQuery };
+
+    // Admins need access to inactive games so they can reactivate them.
     if (status) {
       if (status === 'active') {
         query.isActive = true;
+      } else if (status === 'inactive') {
+        query.isActive = false;
       } else if (status === 'completed') {
         // Games that have results
         const gamesWithResults = await Result.distinct('gameId');
         query._id = { $in: gamesWithResults };
         query.isActive = true;
       }
-    } else {
-      // No status filter provided, still ensure we filter by isActive
-      query.isActive = true;
     }
 
     const pageNum = parseInt(page) || 1;
@@ -248,13 +261,23 @@ router.get('/admin', verifyToken, async (req, res) => {
       return gameObj;
     }));
 
-    const sortedGames = sortGamesByResultTimeAsc(gamesWithResults);
+    const sortedGames = status === 'inactive'
+      ? sortGamesByInactiveDateDesc(gamesWithResults)
+      : sortGamesByResultTimeAsc(gamesWithResults);
     const total = sortedGames.length;
     const pages = Math.ceil(total / limitNum);
     const paginatedGames = sortedGames.slice(skip, skip + limitNum);
+    const [activeGames, inactiveGames] = await Promise.all([
+      Game.countDocuments({ ...baseQuery, isActive: true }),
+      Game.countDocuments({ ...baseQuery, isActive: false })
+    ]);
 
     res.json({
       games: paginatedGames,
+      statusCounts: {
+        active: activeGames,
+        inactive: inactiveGames
+      },
       pagination: {
         currentPage: pageNum,
         totalPages: pages,
@@ -273,7 +296,7 @@ router.get('/admin', verifyToken, async (req, res) => {
 // Get all active games for dropdown (admin endpoint) - MUST come before /:id route
 router.get('/admin/active-games', verifyToken, async (req, res) => {
   try {
-    const query = { isActive: true };
+    const query = { isActive: true, archivedAt: null };
     if (req.user.role !== 'admin') {
       query.assignedUsers = req.user.userId;
     }
@@ -294,7 +317,10 @@ router.get('/latest-result', async (req, res) => {
   try {
     // Show the latest result by result date first.
     // If multiple rows exist on the same date, use entry time as the tie-breaker.
-    const latestResult = await GamePublishedResult.findOne()
+    const visibleGameIds = await Game.find({ archivedAt: null }).distinct('_id');
+    const latestResult = await GamePublishedResult.findOne({
+      gameId: { $in: visibleGameIds }
+    })
       .sort({ publishDate: -1, createdAt: -1, _id: -1 })
       .populate('gameId', 'nickName resultTime');
 
@@ -322,7 +348,8 @@ router.get('/latest-result', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const game = await Game.findById(id).populate('createdBy', 'username email');
+    const game = await Game.findOne({ _id: id, archivedAt: null })
+      .populate('createdBy', 'username email');
     
     if (!game) {
       return res.status(404).json({ error: 'Game not found' });
@@ -355,6 +382,7 @@ router.post('/', verifyToken, async (req, res) => {
     const newGame = new Game({
       nickName,
       isActive,
+      inactiveAt: isActive ? null : new Date(),
       resultTime,
       resultDate: resultDate ? new Date(resultDate) : null,
       createdBy: req.user.userId
@@ -379,7 +407,7 @@ router.put('/:id', verifyToken, async (req, res) => {
     const { id } = req.params;
     const { nickName, isActive, resultTime, resultDate } = req.body;
     
-    const game = await Game.findById(id);
+    const game = await Game.findOne({ _id: id, archivedAt: null });
     
     if (!game) {
       return res.status(404).json({ error: 'Game not found' });
@@ -392,7 +420,17 @@ router.put('/:id', verifyToken, async (req, res) => {
 
     // Update game fields
     if (nickName) game.nickName = nickName;
-    if (isActive !== undefined) game.isActive = isActive;
+    if (isActive !== undefined) {
+      const nextIsActive = Boolean(isActive);
+
+      if (game.isActive && !nextIsActive) {
+        game.inactiveAt = new Date();
+      } else if (!game.isActive && nextIsActive) {
+        game.inactiveAt = null;
+      }
+
+      game.isActive = nextIsActive;
+    }
     if (resultTime !== undefined) game.resultTime = resultTime;
     if (resultDate !== undefined) game.resultDate = resultDate ? new Date(resultDate) : null;
 
@@ -424,7 +462,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'Invalid game ID' });
     }
 
-    const game = await Game.findById(id);
+    const game = await Game.findOne({ _id: id, archivedAt: null });
     console.log('Game found in DB before delete:', !!game);
     
     if (!game) {
@@ -442,7 +480,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
     // Use soft delete - set isActive to false instead of physically deleting
     const deletedGame = await Game.findByIdAndUpdate(
       id,
-      { isActive: false },
+      { isActive: false, inactiveAt: new Date() },
       { new: true }
     );
     console.log('Game marked as inactive:', !!deletedGame);

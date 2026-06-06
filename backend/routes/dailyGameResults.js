@@ -37,7 +37,7 @@ router.post('/', verifyToken, verifyAdmin, async (req, res) => {
       return res.status(400).json({ error: 'gameId and resultNumber are required' });
     }
 
-    const game = await Game.findById(gameId);
+    const game = await Game.findOne({ _id: gameId, archivedAt: null });
     if (!game) {
       return res.status(404).json({ error: 'Game not found' });
     }
@@ -67,10 +67,13 @@ router.post('/', verifyToken, verifyAdmin, async (req, res) => {
 router.get('/', verifyToken, verifyAdmin, async (req, res) => {
   try {
     const { gameId, startDate, endDate } = req.query;
-    const query = {};
+    const visibleGameIds = await Game.find({ archivedAt: null }).distinct('_id');
+    const query = { gameId: { $in: visibleGameIds } };
 
     if (gameId) {
-      query.gameId = gameId;
+      query.gameId = visibleGameIds.some((id) => id.toString() === gameId)
+        ? gameId
+        : null;
     }
 
     if (startDate || endDate) {
@@ -99,7 +102,7 @@ router.get('/today/:gameId', verifyToken, verifyAdmin, async (req, res) => {
   try {
     const { gameId } = req.params;
 
-    const game = await Game.findById(gameId);
+    const game = await Game.findOne({ _id: gameId, archivedAt: null });
     if (!game) {
       return res.status(404).json({ error: 'Game not found' });
     }

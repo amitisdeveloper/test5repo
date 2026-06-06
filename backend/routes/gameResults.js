@@ -30,15 +30,17 @@ const verifyToken = async (req, res, next) => {
 };
 
 const canManageGame = async (user, gameId) => {
-  if (user.role === 'admin') {
-    return true;
+  const query = {
+    _id: gameId,
+    archivedAt: null
+  };
+
+  if (user.role !== 'admin') {
+    query.assignedUsers = user.userId;
+    query.isActive = true;
   }
 
-  const game = await Game.findOne({
-    _id: gameId,
-    assignedUsers: user.userId,
-    isActive: true
-  }).select('_id');
+  const game = await Game.findOne(query).select('_id');
 
   return !!game;
 };
@@ -74,7 +76,7 @@ router.post('/', verifyToken, verifyResultManager, async (req, res) => {
     }
 
     // Verify the game exists
-    const game = await Game.findById(gameId);
+    const game = await Game.findOne({ _id: gameId, archivedAt: null });
     if (!game) {
       return res.status(404).json({ error: 'Game not found' });
     }
@@ -207,7 +209,8 @@ router.post('/bulk', verifyToken, verifyResultManager, async (req, res) => {
       return res.status(400).json({ error: 'mode must be either skip or overwrite' });
     }
 
-    const game = await Game.findById(gameId).select('_id nickName name');
+    const game = await Game.findOne({ _id: gameId, archivedAt: null })
+      .select('_id nickName name');
     if (!game) {
       return res.status(404).json({ error: 'Game not found' });
     }
@@ -396,34 +399,29 @@ router.get('/', async (req, res) => {
       }
     }
 
-    // Add game filter
-    if (gameId) {
-      query.gameId = gameId;
+    const accessibleGamesQuery = { archivedAt: null };
+    if (userContext && userContext.role !== 'admin') {
+      accessibleGamesQuery.assignedUsers = userContext.userId;
+      accessibleGamesQuery.isActive = true;
     }
 
-    if (userContext && userContext.role !== 'admin') {
-      const accessibleGameIds = await Game.find({
-        assignedUsers: userContext.userId,
-        isActive: true
-      }).distinct('_id');
+    const accessibleGameIds = await Game.find(accessibleGamesQuery).distinct('_id');
+    query.gameId = gameId
+      ? (accessibleGameIds.some((id) => id.toString() === gameId.toString()) ? gameId : null)
+      : { $in: accessibleGameIds };
 
-      query.gameId = query.gameId
-        ? (accessibleGameIds.some((id) => id.toString() === query.gameId.toString()) ? query.gameId : null)
-        : { $in: accessibleGameIds };
-
-      if (query.gameId === null) {
-        return res.json({
-          results: [],
-          pagination: {
-            currentPage: parseInt(page) || 1,
-            totalPages: 0,
-            totalItems: 0,
-            itemsPerPage: parseInt(limit) || 10,
-            hasNext: false,
-            hasPrev: false
-          }
-        });
-      }
+    if (query.gameId === null) {
+      return res.json({
+        results: [],
+        pagination: {
+          currentPage: parseInt(page) || 1,
+          totalPages: 0,
+          totalItems: 0,
+          itemsPerPage: parseInt(limit) || 10,
+          hasNext: false,
+          hasPrev: false
+        }
+      });
     }
 
     const pageNum = fetchAll ? 1 : (parseInt(page) || 1);

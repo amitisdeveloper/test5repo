@@ -36,6 +36,19 @@ const gameSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  inactiveAt: {
+    type: Date,
+    default: null
+  },
+  archivedAt: {
+    type: Date,
+    default: null
+  },
+  archiveReason: {
+    type: String,
+    trim: true,
+    default: null
+  },
   resultTime: {
     type: String,
     trim: true,
@@ -57,6 +70,7 @@ const gameSchema = new mongoose.Schema({
 
 // Index for efficient queries
 gameSchema.index({ status: 1, isActive: 1 });
+gameSchema.index({ archivedAt: 1, isActive: 1 });
 gameSchema.index({ createdBy: 1 });
 gameSchema.index({ assignedUsers: 1 });
 

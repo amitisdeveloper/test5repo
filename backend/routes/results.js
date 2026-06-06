@@ -26,10 +26,13 @@ const verifyToken = async (req, res, next) => {
 router.get('/', async (req, res) => {
   try {
     const { gameId, limit = 50 } = req.query;
-    const query = {};
+    const visibleGameIds = await Game.find({ archivedAt: null }).distinct('_id');
+    const query = { gameId: { $in: visibleGameIds } };
     
     if (gameId) {
-      query.gameId = gameId;
+      query.gameId = visibleGameIds.some((id) => id.toString() === gameId)
+        ? gameId
+        : null;
     }
 
     const results = await Result.find(query)
@@ -57,6 +60,15 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Result not found' });
     }
 
+    const visibleGame = result.gameId && await Game.exists({
+      _id: result.gameId._id || result.gameId,
+      archivedAt: null
+    });
+
+    if (!visibleGame) {
+      return res.status(404).json({ error: 'Result not found' });
+    }
+
     res.json(result);
   } catch (error) {
     console.error('Get result error:', error);
@@ -74,7 +86,7 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // Verify the game exists
-    const game = await Game.findById(gameId);
+    const game = await Game.findOne({ _id: gameId, archivedAt: null });
     if (!game) {
       return res.status(404).json({ error: 'Game not found' });
     }
@@ -164,7 +176,7 @@ router.get('/latest/:gameId', async (req, res) => {
     const { limit = 10 } = req.query;
     
     // Verify the game exists
-    const game = await Game.findById(gameId);
+    const game = await Game.findOne({ _id: gameId, archivedAt: null });
     if (!game) {
       return res.status(404).json({ error: 'Game not found' });
     }

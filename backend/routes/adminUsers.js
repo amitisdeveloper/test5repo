@@ -147,7 +147,10 @@ const withAssignedGames = async (users) => {
     return Array.isArray(users) ? [] : null;
   }
 
-  const games = await Game.find({ assignedUsers: { $in: userIds } })
+  const games = await Game.find({
+    assignedUsers: { $in: userIds },
+    archivedAt: null
+  })
     .select('_id name nickName resultTime assignedUsers')
     .lean();
 
