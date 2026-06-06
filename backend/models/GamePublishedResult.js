@@ -1,5 +1,10 @@
 const mongoose = require('mongoose');
 
+const isPlaceholderResult = (value) => {
+  const normalizedValue = String(value || '').trim().toLowerCase();
+  return normalizedValue === '--' || normalizedValue === '##' || normalizedValue === 'wait';
+};
+
 const gamePublishedResultSchema = new mongoose.Schema({
   gameId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -13,7 +18,11 @@ const gamePublishedResultSchema = new mongoose.Schema({
   publishedNumber: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
+    validate: {
+      validator: (value) => !isPlaceholderResult(value),
+      message: 'Placeholder values cannot be stored as published results'
+    }
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,

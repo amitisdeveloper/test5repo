@@ -3,6 +3,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { MongoClient, ObjectId } = require('mongodb');
+const { getTodayDateStringIST_YYYYMMDD } = require('../backend/utils/timezone');
 require('dotenv').config();
 
 function getOptionValue(name) {
@@ -22,6 +23,8 @@ const WORKBOOK_PATH = positionalArgs[0] || 'd:\\reactapps\\tempproj\\figma\\555 
 const YEAR = Number(getOptionValue('--year') || 2025);
 const GAME_NICK_NAME = getOptionValue('--game') || 'Delhi Bazaar';
 const DRY_RUN = process.argv.includes('--dry-run');
+const MAX_SOURCE_DATE = getTodayDateStringIST_YYYYMMDD();
+const PLACEHOLDER_RESULTS = new Set(['--', '##', 'wait']);
 
 const MONTHS = [
   'JANUARY',
@@ -58,10 +61,6 @@ function columnToNumber(column) {
 
 function daysInMonth(year, month) {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
-}
-
-function daysInYear(year) {
-  return Math.round((Date.UTC(year + 1, 0, 1) - Date.UTC(year, 0, 1)) / 86400000);
 }
 
 function extractWorkbook(workbookPath) {
@@ -236,6 +235,8 @@ function parseSheetRows(sheetRows) {
   const rows = [];
   const invalidCalendarCells = [];
   const invalidValues = [];
+  let skippedPlaceholderCells = 0;
+  let skippedFutureCells = 0;
 
   for (const sheetRow of sheetRows.slice(1)) {
     const day = Number(String(sheetRow[1] || '').trim());
@@ -256,19 +257,37 @@ function parseSheetRows(sheetRows) {
         continue;
       }
 
-      if (rawValue !== '--' && rawValue !== '##' && rawValue.toLowerCase() !== 'wait' && !/^\d{1,3}$/.test(rawValue)) {
-        invalidValues.push({ date: `${YEAR}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`, value: rawValue });
+      const date = `${YEAR}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+      if (PLACEHOLDER_RESULTS.has(rawValue.toLowerCase())) {
+        skippedPlaceholderCells += 1;
+        continue;
+      }
+
+      if (date > MAX_SOURCE_DATE) {
+        skippedFutureCells += 1;
+        continue;
+      }
+
+      if (!/^\d{1,3}$/.test(rawValue)) {
+        invalidValues.push({ date, value: rawValue });
         continue;
       }
 
       rows.push({
-        date: `${YEAR}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+        date,
         publishedNumber: rawValue
       });
     }
   }
 
-  return { rows, invalidCalendarCells, invalidValues };
+  return {
+    rows,
+    invalidCalendarCells,
+    invalidValues,
+    skippedPlaceholderCells,
+    skippedFutureCells
+  };
 }
 
 function getPublishDate(dateString) {
@@ -286,16 +305,16 @@ function getStorageDateString(dateString, gameNickName) {
 }
 
 async function main() {
-  const { rows, invalidCalendarCells, invalidValues } = parseResultRows(WORKBOOK_PATH);
+  const {
+    rows,
+    invalidCalendarCells,
+    invalidValues,
+    skippedPlaceholderCells,
+    skippedFutureCells
+  } = parseResultRows(WORKBOOK_PATH);
 
   if (invalidValues.length > 0) {
     throw new Error(`Invalid result values found: ${JSON.stringify(invalidValues.slice(0, 10))}`);
-  }
-
-  const expectedRows = daysInYear(YEAR);
-
-  if (rows.length !== expectedRows) {
-    throw new Error(`Expected ${expectedRows} valid calendar rows, found ${rows.length}`);
   }
 
   const client = new MongoClient(process.env.MONGODB_URI, {
@@ -392,10 +411,10 @@ async function main() {
       game: { _id: game._id.toString(), nickName: game.nickName, resultTime: game.resultTime },
       adminUser: { _id: adminUser._id.toString(), username: adminUser.username },
       workbookPath: WORKBOOK_PATH,
+      maxSourceDate: MAX_SOURCE_DATE,
       parsedRows: rows.length,
-      literalDashRows: rows.filter((row) => row.publishedNumber === '--').length,
-      literalHashRows: rows.filter((row) => row.publishedNumber === '##').length,
-      literalWaitRows: rows.filter((row) => row.publishedNumber.toLowerCase() === 'wait').length,
+      skippedPlaceholderCells,
+      skippedFutureCells,
       storedDateRule: game.nickName === 'Disawar' ? 'source date + 1 day' : 'source date',
       invalidCalendarCellsIgnored: invalidCalendarCells.length,
       existingRowsInYear: existing.length,

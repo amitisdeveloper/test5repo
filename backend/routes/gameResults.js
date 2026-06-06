@@ -5,6 +5,11 @@ const eventEmitter = require('../utils/eventEmitter');
 const { getGameDayStart, getGameDayEnd } = require('../utils/timezone');
 const router = express.Router();
 const BULK_IMPORT_MODES = ['skip', 'overwrite'];
+const PLACEHOLDER_RESULTS = new Set(['--', '##', 'wait']);
+
+const isPlaceholderResult = (value) => PLACEHOLDER_RESULTS.has(
+  String(value || '').trim().toLowerCase()
+);
 
 // Middleware to verify JWT token
 const verifyToken = async (req, res, next) => {
@@ -57,10 +62,15 @@ const getBulkRowNumberValue = (row) => row?.publishedNumber || row?.number || ''
 router.post('/', verifyToken, verifyResultManager, async (req, res) => {
   try {
     const { gameId, publishDate, publishedNumber } = req.body;
+    const normalizedPublishedNumber = String(publishedNumber || '').trim();
 
     // Validate required fields
-    if (!gameId || !publishDate || !publishedNumber) {
+    if (!gameId || !publishDate || !normalizedPublishedNumber) {
       return res.status(400).json({ error: 'gameId, publishDate, and publishedNumber are required' });
+    }
+
+    if (isPlaceholderResult(normalizedPublishedNumber)) {
+      return res.status(400).json({ error: 'Enter a real result. Placeholder values such as --, ##, or wait are not allowed.' });
     }
 
     // Verify the game exists
@@ -104,19 +114,48 @@ router.post('/', verifyToken, verifyResultManager, async (req, res) => {
     console.log('🕒 =========================');
 
     if (existingResult) {
-      return res.status(409).json({ error: 'A result for this game already exists on this dated' });
+      if (isPlaceholderResult(existingResult.publishedNumber)) {
+        const previousValue = existingResult.publishedNumber;
+        existingResult.publishedNumber = normalizedPublishedNumber;
+        existingResult.updatedBy = req.user.userId;
+        existingResult.auditTrail.push({
+          action: 'updated',
+          previousValue,
+          newValue: normalizedPublishedNumber,
+          changedBy: req.user.userId,
+          changedAt: new Date()
+        });
+
+        await existingResult.save();
+        await existingResult.populate([
+          { path: 'gameId', select: 'name nickName' },
+          { path: 'createdBy', select: 'username name role' },
+          { path: 'updatedBy', select: 'username name role' },
+          { path: 'auditTrail.changedBy', select: 'username name role' }
+        ]);
+
+        eventEmitter.emit('result-posted', {
+          type: 'result-posted',
+          gameId,
+          publishedNumber: normalizedPublishedNumber
+        });
+
+        return res.json(existingResult);
+      }
+
+      return res.status(409).json({ error: 'A result for this game already exists on this date' });
     }
 
     const newResult = new GamePublishedResult({
       gameId,
       publishDate: dateStart,
-      publishedNumber: publishedNumber.toString(),
+      publishedNumber: normalizedPublishedNumber,
       createdBy: req.user.userId,
       updatedBy: req.user.userId,
       auditTrail: [{
         action: 'created',
         previousValue: null,
-        newValue: publishedNumber.toString(),
+        newValue: normalizedPublishedNumber,
         changedBy: req.user.userId,
         changedAt: new Date()
       }]
@@ -130,7 +169,11 @@ router.post('/', verifyToken, verifyResultManager, async (req, res) => {
       { path: 'auditTrail.changedBy', select: 'username name role' }
     ]);
 
-    eventEmitter.emit('result-posted', { type: 'result-posted', gameId, publishedNumber });
+    eventEmitter.emit('result-posted', {
+      type: 'result-posted',
+      gameId,
+      publishedNumber: normalizedPublishedNumber
+    });
 
     res.status(201).json(newResult);
   } catch (error) {
@@ -190,6 +233,11 @@ router.post('/bulk', verifyToken, verifyResultManager, async (req, res) => {
 
       if (!rawNumber) {
         validationErrors.push(`Line ${lineNumber}: published number is required`);
+        return;
+      }
+
+      if (isPlaceholderResult(rawNumber)) {
+        validationErrors.push(`Line ${lineNumber}: placeholder results such as --, ##, or wait are not allowed`);
         return;
       }
 
@@ -334,8 +382,9 @@ router.get('/', async (req, res) => {
   }
 
   try {
-    const { page = 1, limit = 10, startDate, endDate, gameId } = req.query;
+    const { page = 1, limit = 10, startDate, endDate, gameId, all } = req.query;
     const query = {};
+    const fetchAll = all === 'true';
 
     if (startDate || endDate) {
       query.publishDate = {};
@@ -377,23 +426,27 @@ router.get('/', async (req, res) => {
       }
     }
 
-    const pageNum = parseInt(page) || 1;
-    const limitNum = parseInt(limit) || 10;
+    const pageNum = fetchAll ? 1 : (parseInt(page) || 1);
+    const limitNum = fetchAll ? 0 : (parseInt(limit) || 10);
     const skip = (pageNum - 1) * limitNum;
 
     // Fetch results
-    const results = await GamePublishedResult.find(query)
+    const resultsQuery = GamePublishedResult.find(query)
       .populate('gameId', 'name nickName resultTime')
       .populate('createdBy', 'username name role')
       .populate('updatedBy', 'username name role')
       .populate('auditTrail.changedBy', 'username name role')
-      .sort({ publishDate: -1 })
-      .limit(limitNum)
-      .skip(skip);
+      .sort({ publishDate: -1 });
+
+    if (!fetchAll) {
+      resultsQuery.limit(limitNum).skip(skip);
+    }
+
+    const results = await resultsQuery;
 
     // Get total count
     const total = await GamePublishedResult.countDocuments(query);
-    const pages = Math.ceil(total / limitNum);
+    const pages = fetchAll ? (total > 0 ? 1 : 0) : Math.ceil(total / limitNum);
 
     res.json({
       results,
@@ -401,9 +454,9 @@ router.get('/', async (req, res) => {
         currentPage: pageNum,
         totalPages: pages,
         totalItems: total,
-        itemsPerPage: limitNum,
-        hasNext: pageNum < pages,
-        hasPrev: pageNum > 1
+        itemsPerPage: fetchAll ? total : limitNum,
+        hasNext: !fetchAll && pageNum < pages,
+        hasPrev: !fetchAll && pageNum > 1
       }
     });
   } catch (error) {
@@ -443,9 +496,14 @@ router.put('/:id', verifyToken, verifyResultManager, async (req, res) => {
   try {
     const { id } = req.params;
     const { publishedNumber } = req.body;
+    const normalizedPublishedNumber = String(publishedNumber || '').trim();
 
-    if (!publishedNumber) {
+    if (!normalizedPublishedNumber) {
       return res.status(400).json({ error: 'publishedNumber is required' });
+    }
+
+    if (isPlaceholderResult(normalizedPublishedNumber)) {
+      return res.status(400).json({ error: 'Enter a real result. Placeholder values such as --, ##, or wait are not allowed.' });
     }
 
     const result = await GamePublishedResult.findById(id);
@@ -461,12 +519,12 @@ router.put('/:id', verifyToken, verifyResultManager, async (req, res) => {
 
     // Update the published number
     const previousValue = result.publishedNumber;
-    result.publishedNumber = publishedNumber.toString();
+    result.publishedNumber = normalizedPublishedNumber;
     result.updatedBy = req.user.userId;
     result.auditTrail.push({
       action: 'updated',
       previousValue,
-      newValue: publishedNumber.toString(),
+      newValue: normalizedPublishedNumber,
       changedBy: req.user.userId,
       changedAt: new Date()
     });

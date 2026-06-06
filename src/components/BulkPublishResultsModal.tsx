@@ -19,6 +19,8 @@ interface ParsedBulkInput {
   errors: string[];
 }
 
+const PLACEHOLDER_RESULTS = new Set(['--', '##', 'wait']);
+
 interface BulkPublishResultsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -71,6 +73,11 @@ function parseBulkInput(input: string): ParsedBulkInput {
 
     if (!publishedNumber) {
       errors.push(`Line ${index + 1}: published number is required`);
+      return;
+    }
+
+    if (PLACEHOLDER_RESULTS.has(publishedNumber.toLowerCase())) {
+      errors.push(`Line ${index + 1}: placeholder results are not allowed`);
       return;
     }
 

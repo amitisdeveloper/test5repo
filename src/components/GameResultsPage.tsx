@@ -29,20 +29,10 @@ interface GameResult {
   };
 }
 
-interface PaginationInfo {
-  currentPage: number;
-  totalPages: number;
-  totalItems: number;
-  itemsPerPage: number;
-  hasNext: boolean;
-  hasPrev: boolean;
-}
-
 function GameResultsPage() {
   const navigate = useNavigate();
   useAdminPresence('game-results');
   const [results, setResults] = useState<GameResult[]>([]);
-  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -57,7 +47,6 @@ function GameResultsPage() {
   // Filter states
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const token = localStorage.getItem('token');
@@ -66,14 +55,17 @@ function GameResultsPage() {
   const API_BASE = import.meta.env.DEV ? 'http://localhost:3001/api' : '/api';
 
   // Fetch results
-  const fetchResults = async (page: number = 1) => {
+  const fetchResults = async (
+    filterStartDate: string = startDate,
+    filterEndDate: string = endDate
+  ) => {
     try {
       setLoading(true);
       setError('');
 
-      let url = `${API_BASE}/admin/game-results?page=${page}&limit=10`;
-      if (startDate) url += `&startDate=${startDate}`;
-      if (endDate) url += `&endDate=${endDate}`;
+      let url = `${API_BASE}/admin/game-results?all=true`;
+      if (filterStartDate) url += `&startDate=${filterStartDate}`;
+      if (filterEndDate) url += `&endDate=${filterEndDate}`;
 
       const response = await fetch(url, {
         headers: {
@@ -94,8 +86,6 @@ function GameResultsPage() {
 
       const data = await response.json();
       setResults(data.results);
-      setPagination(data.pagination);
-      setCurrentPage(page);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -104,7 +94,7 @@ function GameResultsPage() {
   };
 
   useEffect(() => {
-    fetchResults(1);
+    fetchResults();
     fetchTodayDate();
   }, []);
 
@@ -143,7 +133,7 @@ function GameResultsPage() {
       setSuccessMessage('Result published successfully');
       setModalOpen(false);
       setTimeout(() => setSuccessMessage(''), 3000);
-      fetchResults(1);
+      fetchResults();
     } catch (err: any) {
       throw new Error(err.message);
     }
@@ -185,7 +175,7 @@ function GameResultsPage() {
       );
       setBulkModalOpen(false);
       setTimeout(() => setSuccessMessage(''), 4000);
-      fetchResults(1);
+      fetchResults();
     } catch (err: any) {
       throw new Error(err.message);
     } finally {
@@ -223,7 +213,7 @@ function GameResultsPage() {
       setSuccessMessage('Result updated successfully');
       setEditingId(null);
       setTimeout(() => setSuccessMessage(''), 3000);
-      fetchResults(currentPage);
+      fetchResults();
     } catch (err: any) {
       setEditError(err.message);
     }
@@ -246,19 +236,14 @@ function GameResultsPage() {
       setSuccessMessage('Result deleted successfully');
       setDeleteConfirm(null);
       setTimeout(() => setSuccessMessage(''), 3000);
-      fetchResults(currentPage);
+      fetchResults();
     } catch (err: any) {
       setError(err.message);
     }
   };
 
   const handleFilterChange = () => {
-    setCurrentPage(1);
-    fetchResults(1);
-  };
-
-  const handlePageChange = (newPage: number) => {
-    fetchResults(newPage);
+    fetchResults();
   };
 
   const formatDate = (dateString: string) => {
@@ -366,7 +351,7 @@ function GameResultsPage() {
                 onClick={() => {
                   setStartDate('');
                   setEndDate('');
-                  setCurrentPage(1);
+                  fetchResults('', '');
                 }}
                 className="flex-1 bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-gray-500"
               >
@@ -483,29 +468,6 @@ function GameResultsPage() {
             </table>
           )}
         </div>
-
-        {/* Pagination */}
-        {pagination && pagination.totalPages > 1 && (
-          <div className="flex justify-center items-center gap-2 mt-6">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={!pagination.hasPrev || loading}
-              className="px-3 py-2 bg-blue-600 text-white rounded disabled:bg-gray-400"
-            >
-              Previous
-            </button>
-            <span className="px-4 py-2">
-              Page {currentPage} of {pagination.totalPages}
-            </span>
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={!pagination.hasNext || loading}
-              className="px-3 py-2 bg-blue-600 text-white rounded disabled:bg-gray-400"
-            >
-              Next
-            </button>
-          </div>
-        )}
 
         <PublishResultModal
           isOpen={modalOpen}
