@@ -78,6 +78,21 @@ const sortGamesByInactiveDateDesc = (games) => [...games].sort((a, b) => {
   return String(a.nickName || a.name || '').localeCompare(String(b.nickName || b.name || ''));
 });
 
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+const isDisawarGame = (game) => String(game?.nickName || game?.name || '').trim().toLowerCase() === 'disawar';
+
+const addDays = (date, days) => new Date(new Date(date).getTime() + (days * ONE_DAY_MS));
+
+const getDisplayDateForResult = (publishDate, game) => (
+  isDisawarGame(game) ? addDays(publishDate, -1) : publishDate
+);
+
+const isDateInRange = (date, start, end) => {
+  const time = new Date(date).getTime();
+  return time >= start.getTime() && time <= end.getTime();
+};
+
 router.use((req, res, next) => {
   console.log(`\n[${new Date().toISOString()}] ${req.method} ${req.path}`);
   next();
@@ -135,14 +150,39 @@ router.get('/', async (req, res) => {
     const todayGameDate = getCurrentGameDayIST();
     const todayStart = startOfDayIST();
     const todayEnd = endOfDayIST();
+    const disawarStoredDate = addDays(todayGameDate, 1);
+    const disawarStart = getGameDayStart(disawarStoredDate);
+    const disawarEnd = getGameDayEnd(disawarStoredDate);
+    const hasActiveDisawar = games.some(isDisawarGame);
 
     console.log(`[Games API] Filtering results between: ${todayStart.toISOString()} and ${todayEnd.toISOString()}`);
 
+    const resultDateQuery = hasActiveDisawar
+      ? {
+          $or: [
+            {
+              publishDate: {
+                $gte: todayStart,
+                $lte: todayEnd
+              }
+            },
+            {
+              publishDate: {
+                $gte: disawarStart,
+                $lte: disawarEnd
+              }
+            }
+          ]
+        }
+      : {
+          publishDate: {
+            $gte: todayStart,
+            $lte: todayEnd
+          }
+        };
+
     const publishedResults = await GamePublishedResult.find({
-      publishDate: {
-        $gte: todayStart,
-        $lte: todayEnd
-      }
+      ...resultDateQuery
     }).select('gameId publishedNumber publishDate');
 
     console.log(`[Games API] Found ${publishedResults.length} published results for today`);
@@ -156,12 +196,23 @@ router.get('/', async (req, res) => {
 
     // Create a map of gameId to result for quick lookup from both collections
     const resultMap = {};
+    const gameMap = new Map(games.map(game => [game._id.toString(), game]));
     
     // Add published results
     publishedResults.forEach(r => {
-      resultMap[r.gameId.toString()] = {
+      const gameId = r.gameId.toString();
+      const game = gameMap.get(gameId);
+      const expectedStart = isDisawarGame(game) ? disawarStart : todayStart;
+      const expectedEnd = isDisawarGame(game) ? disawarEnd : todayEnd;
+
+      if (!game || !isDateInRange(r.publishDate, expectedStart, expectedEnd)) {
+        return;
+      }
+
+      resultMap[gameId] = {
         number: r.publishedNumber,
-        date: r.publishDate
+        date: getDisplayDateForResult(r.publishDate, game),
+        publishDate: r.publishDate
       };
     });
     
@@ -209,6 +260,8 @@ router.get('/', async (req, res) => {
 // Admin endpoint to get all games
 router.get('/admin', verifyToken, async (req, res) => {
   try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+
     const { page = 1, limit = 9, search, status } = req.query;
     const baseQuery = { archivedAt: null };
 
@@ -332,9 +385,10 @@ router.get('/latest-result', async (req, res) => {
     res.json({
       result: latestResult.publishedNumber,
       name: latestResult.gameId.nickName || 'Unknown Game',
-      date: latestResult.publishDate,
+      date: getDisplayDateForResult(latestResult.publishDate, latestResult.gameId),
+      publishDate: latestResult.publishDate,
       time: latestResult.gameId.resultTime || '02:00 PM',
-      formattedDate: formatGameDate(latestResult.publishDate),
+      formattedDate: formatGameDate(getDisplayDateForResult(latestResult.publishDate, latestResult.gameId)),
       gameId: latestResult.gameId._id,
       postedAt: latestResult.createdAt
     });

@@ -3,6 +3,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const path = require('path');
+const fs = require('fs');
 process.env.TZ = 'Asia/Kolkata';
 
 dotenv.config();
@@ -11,6 +12,10 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const deployCommitPath = path.join(__dirname, '.deploy-commit');
+const DEPLOY_COMMIT = fs.existsSync(deployCommitPath)
+  ? fs.readFileSync(deployCommitPath, 'utf8').trim()
+  : 'unknown';
 
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/555results';
@@ -30,8 +35,16 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files from dist (React build)
-app.use(express.static(path.join(__dirname, 'dist')));
+// Cache hashed assets, but never cache the SPA HTML shell.
+app.use(express.static(path.join(__dirname, 'dist'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    } else if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+  }
+}));
 
 // Import routes
 const authRoutes = require('./backend/routes/auth');
@@ -60,6 +73,7 @@ app.get('/api/health', (req, res) => {
     message: 'Server is running',
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
     environment: NODE_ENV,
+    commit: DEPLOY_COMMIT,
     timestamp: new Date().toISOString()
   });
 });
@@ -75,6 +89,7 @@ app.get('/api', (req, res) => {
 
 // Catch all - serve React app for frontend routes
 app.get('*', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 

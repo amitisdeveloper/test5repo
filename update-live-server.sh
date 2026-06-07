@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 echo "========================================="
 echo "555 Results - Live Server Update Script"
@@ -46,7 +47,29 @@ cd /var/www/555-app
 # Check if git is available and repository exists
 if [ -d ".git" ]; then
     echo "Updating from git repository..."
-    git pull origin main
+    echo "Current commit: $(git rev-parse HEAD)"
+
+    if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+        echo -e "${RED}Tracked files have local changes. Deployment stopped.${NC}"
+        git status --short
+        exit 1
+    fi
+
+    git fetch origin main
+    git checkout main
+    git pull --ff-only origin main
+
+    DEPLOYED_COMMIT=$(git rev-parse HEAD)
+    REMOTE_COMMIT=$(git rev-parse origin/main)
+    echo "Deployed commit: $DEPLOYED_COMMIT"
+    echo "Origin main:     $REMOTE_COMMIT"
+
+    if [ "$DEPLOYED_COMMIT" != "$REMOTE_COMMIT" ]; then
+        echo -e "${RED}Local main does not match origin/main. Deployment stopped.${NC}"
+        exit 1
+    fi
+
+    printf '%s\n' "$DEPLOYED_COMMIT" > .deploy-commit
 else
     echo "No git repository found. Please manually upload the updated files:"
     echo "- backend/utils/timezone.js"
@@ -64,6 +87,14 @@ npm install
 echo -e "${YELLOW}Step 5: Building frontend...${NC}"
 npm run build
 
+if [ ! -f "dist/index.html" ]; then
+    echo -e "${RED}Frontend build did not create dist/index.html${NC}"
+    exit 1
+fi
+
+echo "Built frontend assets:"
+grep -oE '/assets/[^"]+\.(js|css)' dist/index.html || true
+
 # Step 6: Set permissions
 echo -e "${YELLOW}Step 6: Setting permissions...${NC}"
 chown -R www-data:www-data /var/www/555-app
@@ -71,7 +102,7 @@ chmod -R 755 /var/www/555-app
 
 # Step 7: Start service
 echo -e "${YELLOW}Step 7: Starting application service...${NC}"
-sudo systemctl start 555-app.service
+sudo systemctl restart 555-app.service
 
 # Wait a moment for service to start
 sleep 3
@@ -91,7 +122,7 @@ fi
 echo -e "${YELLOW}Step 9: Testing API endpoint...${NC}"
 sleep 2
 API_RESPONSE=$(curl -s http://localhost:3001/api/games)
-if echo "$API_RESPONSE" | grep -q "localUpcoming"; then
+if echo "$API_RESPONSE" | grep -q '"games"'; then
     echo -e "${GREEN}✓ API is responding correctly${NC}"
 else
     echo -e "${YELLOW}⚠ API response may need verification${NC}"
