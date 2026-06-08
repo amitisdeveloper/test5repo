@@ -258,7 +258,7 @@ function ArchivesPage() {
       <footer className="bg-gradient-to-b from-transparent to-amber-950/30 py-8 mt-12 border-t border-yellow-600/30">
         <div className="container mx-auto px-4">
           <div className="text-center space-y-3">
-            <p className="text-yellow-400 font-semibold">© 2024 555 Results Live Results. All Rights Reserved.</p>
+            <p className="text-yellow-400 font-semibold">© 2026 555 Results Live Results. All Rights Reserved.</p>
             <p className="text-gray-500 text-sm">Play Responsibly | 18+ Only | Gambling Can Be Addictive</p>
           </div>
         </div>
