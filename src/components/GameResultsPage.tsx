@@ -3,7 +3,7 @@ import { Trash2, Edit2, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PublishResultModal from './PublishResultModal';
 import BulkPublishResultsModal from './BulkPublishResultsModal';
-import { formatGameDate } from '../utils/timezone';
+import { formatGameDate, getDisawarDisplayDate } from '../utils/timezone';
 import { useAdminPresence } from '../hooks/useAdminPresence';
 
 interface GameResult {
@@ -386,7 +386,7 @@ function GameResultsPage() {
                       {result.gameId.name || result.gameId.nickName}
                     </td>
                     <td className="px-6 py-3">
-                      {formatDate(result.publishDate)}
+                      {formatDate(getDisawarDisplayDate(result.publishDate, result.gameId.name || result.gameId.nickName || ''))}
                     </td>
                     <td className="px-6 py-3">
                       {editingId === result._id ? (

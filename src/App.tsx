@@ -12,7 +12,32 @@ import GameChart from './components/GameChart';
 import GameResultsPage from './components/GameResultsPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ArchivesPage from './components/ArchivesPage';
-import { formatGameDate } from './utils/timezone';
+import { formatGameDate, getDisawarDisplayDate } from './utils/timezone';
+
+// Session: active from 3:15 PM IST to 9:00 AM IST next day.
+// Dead zone: 9:00 AM IST to 3:14 PM IST — show all games as loading.
+
+const getISTHoursMinutes = (): { hours: number; minutes: number } => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(new Date());
+  return {
+    hours: parseInt(parts.find((p) => p.type === 'hour')?.value || '0', 10),
+    minutes: parseInt(parts.find((p) => p.type === 'minute')?.value || '0', 10),
+  };
+};
+
+// Returns true during the dead zone: 9:00 AM to 3:14 PM IST
+const isInDeadZone = (): boolean => {
+  const { hours, minutes } = getISTHoursMinutes();
+  const totalMinutes = hours * 60 + minutes;
+  const deadStart = 9 * 60;       // 9:00 AM
+  const deadEnd = 15 * 60 + 14;   // 3:14 PM (session starts at 3:15 PM)
+  return totalMinutes >= deadStart && totalMinutes <= deadEnd;
+};
 
 const getResultTimeSortValue = (resultTime?: string | null) => {
   if (!resultTime || typeof resultTime !== 'string') {
@@ -36,11 +61,13 @@ const getResultTimeSortValue = (resultTime?: string | null) => {
 
   const totalMinutes = (hours * 60) + minutes;
 
-  if (hours < 6) {
+  // Early morning games (before 9 AM) sort after late-night games
+  if (hours < 9) {
     return totalMinutes + (24 * 60);
   }
 
-  if (hours >= 14) {
+  // Session games start at 3:15 PM (15:15)
+  if (hours > 15 || (hours === 15 && minutes >= 15)) {
     return totalMinutes;
   }
 
@@ -48,27 +75,27 @@ const getResultTimeSortValue = (resultTime?: string | null) => {
 };
 
 const getCurrentISTGameTimeSortValue = () => {
-  const timeParts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Kolkata',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  }).formatToParts(new Date());
-
-  const hours = parseInt(timeParts.find((part) => part.type === 'hour')?.value || '0', 10);
-  const minutes = parseInt(timeParts.find((part) => part.type === 'minute')?.value || '0', 10);
+  const { hours, minutes } = getISTHoursMinutes();
   const totalMinutes = (hours * 60) + minutes;
 
-  if (hours < 6) {
+  if (hours < 9) {
     return totalMinutes + (24 * 60);
   }
 
-  if (hours >= 14) {
+  if (hours >= 15) {
     return totalMinutes;
   }
 
-  // Between 6:00 AM and 1:59 PM IST, the next scheduled game should reset to the first shift.
   return 0;
+};
+
+// Returns true only if the current IST time has already passed the game's resultTime.
+// This prevents showing a result before its scheduled declaration time,
+// even if hasResult is true (e.g. Disawar's result carried from the previous session).
+const hasResultTimePassed = (resultTime?: string | null): boolean => {
+  const sv = getResultTimeSortValue(resultTime);
+  if (sv === Number.MAX_SAFE_INTEGER) return false;
+  return getCurrentISTGameTimeSortValue() >= sv;
 };
 
 function HomePage() {
@@ -79,15 +106,18 @@ function HomePage() {
   const [latestResult, setLatestResult] = useState<any>(null);
   const [todayGameDate, setTodayGameDate] = useState<string>('');
   const [, setCurrentTimeMarker] = useState(() => Date.now());
+  const [deadZone, setDeadZone] = useState(() => isInDeadZone());
   const isFirstLoad = useRef(true);
   const sortedResults = [...todaysResults].sort(
     (a: any, b: any) => getResultTimeSortValue(a.resultTime) - getResultTimeSortValue(b.resultTime)
   );
   const currentISTGameTime = getCurrentISTGameTimeSortValue();
-  const nextUpcomingGame =
-    sortedResults.find((game: any) => getResultTimeSortValue(game.resultTime) >= currentISTGameTime) ||
-    sortedResults[0] ||
-    null;
+  const nextUpcomingGame = deadZone
+    ? null
+    : sortedResults.find((game: any) => {
+        const sv = getResultTimeSortValue(game.resultTime);
+        return sv !== Number.MAX_SAFE_INTEGER && sv >= currentISTGameTime && !game.hasResult;
+      }) || null;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -187,6 +217,7 @@ function HomePage() {
 
     const clockInterval = setInterval(() => {
       setCurrentTimeMarker(Date.now());
+      setDeadZone(isInDeadZone());
     }, 30000);
 
     return () => {
@@ -264,12 +295,20 @@ function HomePage() {
           <div className="text-center mb-6">
             <h2 className="text-3xl font-bold text-yellow-400 mb-2">Today's Results Board</h2>
             <p className="text-yellow-200 text-sm mb-2">{todayGameDate}</p>
-            <div className="inline-block bg-red-600 text-white text-xs font-bold px-4 py-1 rounded-full">
-              Live game status
+            <div className={`inline-block text-white text-xs font-bold px-4 py-1 rounded-full ${deadZone ? 'bg-gray-600' : 'bg-red-600'}`}>
+              {deadZone ? 'Next session starts at 3:15 PM' : 'Live game status'}
             </div>
           </div>
 
-          {nextUpcomingGame && (
+          {deadZone && (
+            <div className="mb-6 rounded-xl border border-gray-600/40 bg-gradient-to-r from-gray-800/40 via-neutral-800/40 to-gray-800/40 p-4 text-center">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-gray-400 mb-1">Results Declared Till 9:00 AM</p>
+              <p className="text-lg font-bold text-gray-300">Next session begins at <span className="text-yellow-400">3:15 PM</span></p>
+              <p className="text-xs text-gray-500 mt-1">All results will be live from 3:15 PM onwards</p>
+            </div>
+          )}
+
+          {!deadZone && nextUpcomingGame && (
             <div className="mb-6 rounded-xl border border-yellow-500/40 bg-gradient-to-r from-yellow-500/10 via-amber-500/10 to-red-500/10 p-4">
               <div className="flex flex-col gap-2 text-center sm:flex-row sm:items-center sm:justify-between sm:text-left">
                 <div>
@@ -285,8 +324,9 @@ function HomePage() {
           )}
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {todaysResults.map((game: any, index: number) => {
-              const isNextUpcomingGame = nextUpcomingGame?._id === game._id;
+            {sortedResults.map((game: any, index: number) => {
+              const isNextUpcomingGame = !deadZone && nextUpcomingGame?._id === game._id;
+              const showResult = !deadZone && game.hasResult && game.result && hasResultTimePassed(game.resultTime);
 
               return (
                 <div
@@ -305,11 +345,8 @@ function HomePage() {
                     <p className="text-blue-400 text-xs text-center mb-2">Result Time: {game.resultTime}</p>
                   )}
 
-                  {game.hasResult && game.result ? (
+                  {showResult ? (
                     <>
-                      <p className="text-center text-gray-500 text-xs mb-3">
-                        {game.resultDate ? formatGameDate(game.resultDate) : 'Today'}
-                      </p>
                       <div className="text-center">
                         <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-lg py-3 px-6 mb-3 shadow-md">
                           <span className="text-white font-bold text-xl">{game.result}</span>
@@ -326,7 +363,7 @@ function HomePage() {
                     <div className="text-center">
                       <div className="bg-gradient-to-r from-gray-700 to-gray-800 rounded-lg py-3 px-6 mb-3 shadow-md flex items-center justify-center gap-2">
                         <RefreshCw className="w-4 h-4 text-yellow-300 animate-spin" />
-                        <span className="text-white font-bold text-sm">Loading</span>
+                        <span className="text-white font-bold text-sm">{deadZone ? 'Waiting...' : 'Loading'}</span>
                       </div>
                       <button
                         onClick={() => setSelectedGameForChart(game.nickName)}
@@ -340,7 +377,7 @@ function HomePage() {
               );
             })}
 
-            {todaysResults.length === 0 && (
+            {sortedResults.length === 0 && (
               <div className="col-span-full text-center text-gray-400 py-8">
                 <p className="text-lg">No active games available</p>
               </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Archive, Calendar, Search, ArrowLeft } from 'lucide-react';
-import { formatGameDate, formatGameTime } from '../utils/timezone';
+import { formatGameDate, formatGameTime, getDisawarDisplayDate } from '../utils/timezone';
 
 interface ArchivedResult {
   _id: string;
@@ -11,6 +11,7 @@ interface ArchivedResult {
   };
   publishedNumber: string;
   publishDate: string;
+  displayDate: string;
   createdAt: string;
 }
 
@@ -37,10 +38,15 @@ function ArchivesPage() {
         const data = await response.json();
         
         if (data.results && Array.isArray(data.results)) {
-          const sortedResults = data.results.sort((a: ArchivedResult, b: ArchivedResult) => {
-            return new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime();
-          });
-          
+          const sortedResults = data.results
+            .map((r: ArchivedResult) => ({
+              ...r,
+              displayDate: getDisawarDisplayDate(r.publishDate, r.gameId.nickName)
+            }))
+            .sort((a: ArchivedResult, b: ArchivedResult) => {
+              return new Date(b.displayDate).getTime() - new Date(a.displayDate).getTime();
+            });
+
           setResults(sortedResults);
           
           const uniqueGames = Array.from(
@@ -67,7 +73,7 @@ function ArchivesPage() {
     if (selectedDate) {
       const selectedDateStr = new Date(selectedDate).toDateString();
       filtered = filtered.filter(r => {
-        const resultDate = new Date(r.publishDate).toDateString();
+        const resultDate = new Date(r.displayDate).toDateString();
         return resultDate === selectedDateStr;
       });
     }
@@ -87,7 +93,7 @@ function ArchivesPage() {
   }, [selectedDate, selectedGame, searchTerm, results]);
 
   const groupedResults = filteredResults.reduce((acc: Record<string, ArchivedResult[]>, result) => {
-    const dateKey = new Date(result.publishDate).toDateString();
+    const dateKey = new Date(result.displayDate).toDateString();
     if (!acc[dateKey]) {
       acc[dateKey] = [];
     }

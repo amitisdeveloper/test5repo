@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { getDisawarDisplayDate } from '../utils/timezone';
 
 interface GameChartProps {
   gameName: string;
@@ -74,7 +75,7 @@ function GameChart({ gameName, onClose }: GameChartProps) {
           name: r.gameId.nickName,
           time: r.gameId.resultTime || '02:00 PM',
           createdAt: r.publishDate,
-          displayDate: r.publishDate
+          displayDate: getDisawarDisplayDate(r.publishDate, r.gameId.nickName || '')
         }));
 
         setResults(transformedResults);

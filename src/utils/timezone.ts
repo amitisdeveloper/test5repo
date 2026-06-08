@@ -34,6 +34,16 @@ export function formatGameDateTime(date: string | Date): string {
   return `${formatGameDate(date)} ${formatGameTime(date)}`;
 }
 
+// Disawar results are stored one day ahead; subtract one day for display only.
+export function getDisawarDisplayDate(publishDate: string, nickName: string): string {
+  if (nickName?.toLowerCase() === 'disawar') {
+    const d = new Date(publishDate);
+    d.setDate(d.getDate() - 1);
+    return d.toISOString();
+  }
+  return publishDate;
+}
+
 export function getGameDateString(date: string | Date): string {
   try {
     const d = typeof date === 'string' ? new Date(date) : date;
