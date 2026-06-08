@@ -219,9 +219,10 @@ router.get('/', async (req, res) => {
     // Add regular results (these should also count as having results)
     todayGameResults.forEach(r => {
       if (!resultMap[r.gameId.toString()]) {
+        const game = gameMap.get(r.gameId.toString());
         resultMap[r.gameId.toString()] = {
           number: r.result,
-          date: r.drawDate
+          date: getDisplayDateForResult(r.drawDate, game)
         };
       }
     });
