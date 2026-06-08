@@ -343,10 +343,10 @@ router.get('/latest-result', async (req, res) => {
     res.json({
       result: latestResult.publishedNumber,
       name: latestResult.gameId.nickName || 'Unknown Game',
-      date: getDisplayDateForResult(latestResult.publishDate, latestResult.gameId),
+      date: latestResult.publishDate,
       publishDate: latestResult.publishDate,
       time: latestResult.gameId.resultTime || '02:00 PM',
-      formattedDate: formatGameDate(getDisplayDateForResult(latestResult.publishDate, latestResult.gameId)),
+      formattedDate: formatGameDate(latestResult.publishDate),
       gameId: latestResult.gameId._id,
       postedAt: latestResult.createdAt
     });

@@ -74,10 +74,7 @@ function GameChart({ gameName, onClose }: GameChartProps) {
           name: r.gameId.nickName,
           time: r.gameId.resultTime || '02:00 PM',
           createdAt: r.publishDate,
-          displayDate:
-            r.gameId.nickName === 'Disawar'
-              ? new Date(new Date(r.publishDate).getTime() - 24 * 60 * 60 * 1000).toISOString()
-              : r.publishDate
+          displayDate: r.publishDate
         }));
 
         setResults(transformedResults);
@@ -93,9 +90,22 @@ function GameChart({ gameName, onClose }: GameChartProps) {
     }
   };
 
+  const getISTDateParts = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(d);
+    return {
+      year: parseInt(parts.find(p => p.type === 'year')!.value),
+      month: parseInt(parts.find(p => p.type === 'month')!.value) - 1,
+      day: parseInt(parts.find(p => p.type === 'day')!.value)
+    };
+  };
+
   const filteredResults = results.filter((result) => {
-    const date = new Date(result.displayDate || result.createdAt);
-    return date.getMonth() === selectedMonth && date.getFullYear() === selectedYear;
+    const { month, year } = getISTDateParts(result.displayDate || result.createdAt);
+    return month === selectedMonth && year === selectedYear;
   });
 
   const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
@@ -103,8 +113,8 @@ function GameChart({ gameName, onClose }: GameChartProps) {
 
   const resultsByDay = daysArray.map((day) => {
     const dayResults = filteredResults.filter((result) => {
-      const date = new Date(result.displayDate || result.createdAt);
-      return date.getDate() === day;
+      const { day: d } = getISTDateParts(result.displayDate || result.createdAt);
+      return d === day;
     });
 
     return dayResults.length > 0 ? dayResults[0] : null;
