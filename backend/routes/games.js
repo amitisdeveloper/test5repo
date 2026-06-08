@@ -3,18 +3,14 @@ const Game = require('../models/Game');
 const Result = require('../models/Result');
 const GamePublishedResult = require('../models/GamePublishedResult');
 const eventEmitter = require('../utils/eventEmitter');
-const { 
-  getGameDate, 
-  getCurrentGameDayIST,
+const {
+  getGameDate,
   startOfDayIST,
   endOfDayIST,
   getGameDateIST,
-  getGameDateForTime, 
-  formatGameDate, 
+  getGameDateForTime,
+  formatGameDate,
   formatGameTime,
-  getGameDayStart,
-  getGameDayEnd,
-  getTodayDateIST,
   getTodayDateStringIST,
   getTodayDateStringIST_YYYYMMDD
 } = require('../utils/timezone');
@@ -78,16 +74,6 @@ const sortGamesByInactiveDateDesc = (games) => [...games].sort((a, b) => {
   return String(a.nickName || a.name || '').localeCompare(String(b.nickName || b.name || ''));
 });
 
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-
-const isDisawarGame = (game) => String(game?.nickName || game?.name || '').trim().toLowerCase() === 'disawar';
-
-const addDays = (date, days) => new Date(new Date(date).getTime() + (days * ONE_DAY_MS));
-
-const getDisplayDateForResult = (publishDate, game) => (
-  isDisawarGame(game) ? addDays(publishDate, -1) : publishDate
-);
-
 const isDateInRange = (date, start, end) => {
   const time = new Date(date).getTime();
   return time >= start.getTime() && time <= end.getTime();
@@ -147,42 +133,16 @@ router.get('/', async (req, res) => {
     console.log(`[Games API] Found ${games.length} active games`);
 
     // Use single IST day boundary for all filtering
-    const todayGameDate = getCurrentGameDayIST();
     const todayStart = startOfDayIST();
     const todayEnd = endOfDayIST();
-    const disawarStoredDate = addDays(todayGameDate, 1);
-    const disawarStart = getGameDayStart(disawarStoredDate);
-    const disawarEnd = getGameDayEnd(disawarStoredDate);
-    const hasActiveDisawar = games.some(isDisawarGame);
 
     console.log(`[Games API] Filtering results between: ${todayStart.toISOString()} and ${todayEnd.toISOString()}`);
 
-    const resultDateQuery = hasActiveDisawar
-      ? {
-          $or: [
-            {
-              publishDate: {
-                $gte: todayStart,
-                $lte: todayEnd
-              }
-            },
-            {
-              publishDate: {
-                $gte: disawarStart,
-                $lte: disawarEnd
-              }
-            }
-          ]
-        }
-      : {
-          publishDate: {
-            $gte: todayStart,
-            $lte: todayEnd
-          }
-        };
-
     const publishedResults = await GamePublishedResult.find({
-      ...resultDateQuery
+      publishDate: {
+        $gte: todayStart,
+        $lte: todayEnd
+      }
     }).select('gameId publishedNumber publishDate');
 
     console.log(`[Games API] Found ${publishedResults.length} published results for today`);
@@ -202,27 +162,24 @@ router.get('/', async (req, res) => {
     publishedResults.forEach(r => {
       const gameId = r.gameId.toString();
       const game = gameMap.get(gameId);
-      const expectedStart = isDisawarGame(game) ? disawarStart : todayStart;
-      const expectedEnd = isDisawarGame(game) ? disawarEnd : todayEnd;
 
-      if (!game || !isDateInRange(r.publishDate, expectedStart, expectedEnd)) {
+      if (!game || !isDateInRange(r.publishDate, todayStart, todayEnd)) {
         return;
       }
 
       resultMap[gameId] = {
         number: r.publishedNumber,
-        date: getDisplayDateForResult(r.publishDate, game),
+        date: r.publishDate,
         publishDate: r.publishDate
       };
     });
-    
+
     // Add regular results (these should also count as having results)
     todayGameResults.forEach(r => {
       if (!resultMap[r.gameId.toString()]) {
-        const game = gameMap.get(r.gameId.toString());
         resultMap[r.gameId.toString()] = {
           number: r.result,
-          date: getDisplayDateForResult(r.drawDate, game)
+          date: r.drawDate
         };
       }
     });
@@ -244,7 +201,7 @@ router.get('/', async (req, res) => {
       games: sortedGames,
       upcomingGames: sortedGames.filter(g => !g.hasResult),
       gamesWithResults: sortGamesByResultTimeAsc(sortedGames.filter(g => g.hasResult)),
-      todayGameDate: formatGameDate(todayGameDate),
+      todayGameDate: getTodayDateStringIST(),
       todayDateIST: getTodayDateStringIST(),
       todayDateIST_YYYYMMDD: getTodayDateStringIST_YYYYMMDD(),
       filteringRange: {
