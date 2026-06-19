@@ -99,18 +99,12 @@ const getSessionStartDateIST = (): string => {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(d); // YYYY-MM-DD
 };
 
-// Returns true only if the result's publishDate belongs to the current session.
-// We normalise game.resultDate through getDisawarDisplayDate (which subtracts 1 day
-// for Disawar so its stored "next-day" date becomes the session's calendar date),
-// then compare that display date against the session start date.
-// This means a freshly published Disawar result shows immediately regardless of time,
-// while a carry-over result from the previous session is blocked.
-const isResultForCurrentSession = (game: any): boolean => {
+const isResultForCurrentSession = (game: any, sessionDate: string): boolean => {
   if (!game.resultDate) return false;
   const displayDate = getDisawarDisplayDate(game.resultDate, game.nickName || '');
   const resultDisplayDateIST = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' })
     .format(new Date(displayDate));
-  return resultDisplayDateIST === getSessionStartDateIST();
+  return resultDisplayDateIST === sessionDate;
 };
 
 function HomePage() {
@@ -120,6 +114,7 @@ function HomePage() {
   const [selectedGameForChart, setSelectedGameForChart] = useState<string | null>(null);
   const [latestResult, setLatestResult] = useState<any>(null);
   const [todayGameDate, setTodayGameDate] = useState<string>('');
+  const [sessionDateYYYYMMDD, setSessionDateYYYYMMDD] = useState<string>(() => getSessionStartDateIST());
   const [, setCurrentTimeMarker] = useState(() => Date.now());
   const [deadZone, setDeadZone] = useState(() => isInDeadZone());
   const isFirstLoad = useRef(true);
@@ -175,6 +170,9 @@ function HomePage() {
 
         setTodaysResults(gamesData.games || []);
         setTodayGameDate(gamesData.todayGameDate || gamesData.todayDateIST || 'Today');
+        if (gamesData.todayDateIST_YYYYMMDD) {
+          setSessionDateYYYYMMDD(gamesData.todayDateIST_YYYYMMDD);
+        }
         setLatestResult(latestResultData);
         setError(null);
       } catch (err) {
@@ -341,7 +339,7 @@ function HomePage() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {sortedResults.map((game: any, index: number) => {
               const isNextUpcomingGame = !deadZone && nextUpcomingGame?._id === game._id;
-              const showResult = !deadZone && game.hasResult && game.result && isResultForCurrentSession(game);
+              const showResult = !deadZone && game.hasResult && game.result && isResultForCurrentSession(game, sessionDateYYYYMMDD);
 
               return (
                 <div
