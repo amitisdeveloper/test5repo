@@ -37,6 +37,8 @@ dist-ssr/
 .vercel/
 .next/
 out/
+.zencoder
+.zenflow
 
 # OS and temporary files
 Thumbs.db

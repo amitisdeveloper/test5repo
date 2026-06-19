@@ -89,13 +89,28 @@ const getCurrentISTGameTimeSortValue = () => {
   return 0;
 };
 
-// Returns true only if the current IST time has already passed the game's resultTime.
-// This prevents showing a result before its scheduled declaration time,
-// even if hasResult is true (e.g. Disawar's result carried from the previous session).
-const hasResultTimePassed = (resultTime?: string | null): boolean => {
-  const sv = getResultTimeSortValue(resultTime);
-  if (sv === Number.MAX_SAFE_INTEGER) return false;
-  return getCurrentISTGameTimeSortValue() >= sv;
+// Returns the IST calendar date (YYYY-MM-DD) when the current session started.
+// Between 12:00 AM and 9:00 AM IST we are still in yesterday's session.
+const getSessionStartDateIST = (): string => {
+  const { hours } = getISTHoursMinutes();
+  const d = new Date();
+  // Before 9 AM we are in the previous day's session
+  if (hours < 9) d.setDate(d.getDate() - 1);
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(d); // YYYY-MM-DD
+};
+
+// Returns true only if the result's publishDate belongs to the current session.
+// We normalise game.resultDate through getDisawarDisplayDate (which subtracts 1 day
+// for Disawar so its stored "next-day" date becomes the session's calendar date),
+// then compare that display date against the session start date.
+// This means a freshly published Disawar result shows immediately regardless of time,
+// while a carry-over result from the previous session is blocked.
+const isResultForCurrentSession = (game: any): boolean => {
+  if (!game.resultDate) return false;
+  const displayDate = getDisawarDisplayDate(game.resultDate, game.nickName || '');
+  const resultDisplayDateIST = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' })
+    .format(new Date(displayDate));
+  return resultDisplayDateIST === getSessionStartDateIST();
 };
 
 function HomePage() {
@@ -326,7 +341,7 @@ function HomePage() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {sortedResults.map((game: any, index: number) => {
               const isNextUpcomingGame = !deadZone && nextUpcomingGame?._id === game._id;
-              const showResult = !deadZone && game.hasResult && game.result && hasResultTimePassed(game.resultTime);
+              const showResult = !deadZone && game.hasResult && game.result && isResultForCurrentSession(game);
 
               return (
                 <div
