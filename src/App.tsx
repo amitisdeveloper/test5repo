@@ -74,6 +74,46 @@ const getResultTimeSortValue = (resultTime?: string | null) => {
   return Number.MAX_SAFE_INTEGER;
 };
 
+const getDeclarationTimeSortValue = (resultTime?: string | null) => {
+  if (!resultTime || typeof resultTime !== 'string') {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  const match = resultTime.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const meridiem = match[3].toUpperCase();
+
+  if (meridiem === 'AM' && hours === 12) {
+    hours = 0;
+  } else if (meridiem === 'PM' && hours !== 12) {
+    hours += 12;
+  }
+
+  return (hours * 60) + minutes;
+};
+
+const isDisawarGame = (game: any): boolean =>
+  String(game?.nickName || game?.name || '').trim().toLowerCase() === 'disawar';
+
+const sortGamesByDeclarationTime = (games: any[]) => [...games].sort((a: any, b: any) => {
+  const disawarOrder = Number(isDisawarGame(a)) - Number(isDisawarGame(b));
+  if (disawarOrder !== 0) {
+    return disawarOrder;
+  }
+
+  const timeDiff = getDeclarationTimeSortValue(a.resultTime) - getDeclarationTimeSortValue(b.resultTime);
+  if (timeDiff !== 0) {
+    return timeDiff;
+  }
+
+  return String(a.nickName || a.name || '').localeCompare(String(b.nickName || b.name || ''));
+});
+
 const getCurrentISTGameTimeSortValue = () => {
   const { hours, minutes } = getISTHoursMinutes();
   const totalMinutes = (hours * 60) + minutes;
@@ -118,9 +158,7 @@ function HomePage() {
   const [, setCurrentTimeMarker] = useState(() => Date.now());
   const [deadZone, setDeadZone] = useState(() => isInDeadZone());
   const isFirstLoad = useRef(true);
-  const sortedResults = [...todaysResults].sort(
-    (a: any, b: any) => getResultTimeSortValue(a.resultTime) - getResultTimeSortValue(b.resultTime)
-  );
+  const sortedResults = sortGamesByDeclarationTime(todaysResults);
   const currentISTGameTime = getCurrentISTGameTimeSortValue();
   const nextUpcomingGame = deadZone
     ? null

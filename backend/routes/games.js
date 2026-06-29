@@ -36,24 +36,20 @@ const getResultTimeSortValue = (resultTime) => {
     hours += 12;
   }
 
-  const totalMinutes = (hours * 60) + minutes;
-
-  // Business-day order:
-  // 02:00 PM -> 11:59 PM come first
-  // 12:00 AM -> 05:59 AM are treated as the last shifts of the previous day
-  if (hours < 6) {
-    return totalMinutes + (24 * 60);
-  }
-
-  if (hours >= 14) {
-    return totalMinutes;
-  }
-
-  // Any daytime values outside the normal game window go after standard shifts.
-  return totalMinutes + (48 * 60);
+  return (hours * 60) + minutes;
 };
 
 const sortGamesByResultTimeAsc = (games) => [...games].sort((a, b) => {
+  // Disawar is the final shift of the game day. Its early-morning result is
+  // published on the following calendar date, so it must always display last.
+  const isDisawar = (game) => String(game.nickName || game.name || '')
+    .trim()
+    .toLowerCase() === 'disawar';
+  const disawarOrder = Number(isDisawar(a)) - Number(isDisawar(b));
+  if (disawarOrder !== 0) {
+    return disawarOrder;
+  }
+
   const timeDiff = getResultTimeSortValue(a.resultTime) - getResultTimeSortValue(b.resultTime);
   if (timeDiff !== 0) {
     return timeDiff;
