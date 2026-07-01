@@ -87,7 +87,7 @@ app.get('/api/health', (req, res) => {
 // API info endpoint
 app.get('/api', (req, res) => {
   res.json({
-    name: 'Sattaking API',
+    name: 'Sattaking999 API',
     version: '2.0.0',
     status: 'running'
   });
