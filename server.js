@@ -17,6 +17,10 @@ const DEPLOY_COMMIT = fs.existsSync(deployCommitPath)
   ? fs.readFileSync(deployCommitPath, 'utf8').trim()
   : 'unknown';
 
+// Trust forwarded client IPs only when the immediate proxy is on a private/local network.
+// Override TRUST_PROXY for a different deployment topology.
+app.set('trust proxy', process.env.TRUST_PROXY || 'loopback, linklocal, uniquelocal');
+
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/555results';
 
@@ -54,6 +58,7 @@ const gameResultsRoutes = require('./backend/routes/gameResults');
 const dailyGameResultsRoutes = require('./backend/routes/dailyGameResults');
 const adminUsersRoutes = require('./backend/routes/adminUsers');
 const adminPresenceRoutes = require('./backend/routes/adminPresence');
+const visitorsRoutes = require('./backend/routes/visitors');
 const { router: eventsRoutes } = require('./backend/routes/events');
 
 // API Routes
@@ -64,6 +69,7 @@ app.use('/api/admin/game-results', gameResultsRoutes);
 app.use('/api/admin/daily-results', dailyGameResultsRoutes);
 app.use('/api/admin/users', adminUsersRoutes);
 app.use('/api/admin/presence', adminPresenceRoutes);
+app.use('/api/visitors', visitorsRoutes);
 app.use('/api/events', eventsRoutes);
 
 // Health check

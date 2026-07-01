@@ -13,6 +13,10 @@ const PORT = process.env.PORT || 3001;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
+// Trust forwarded client IPs only when the immediate proxy is on a private/local network.
+// Override TRUST_PROXY for a different deployment topology.
+app.set('trust proxy', process.env.TRUST_PROXY || 'loopback, linklocal, uniquelocal');
+
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/555results';
 
@@ -41,6 +45,7 @@ const gameResultsRoutes = require('./routes/gameResults');
 const dailyGameResultsRoutes = require('./routes/dailyGameResults');
 const adminUsersRoutes = require('./routes/adminUsers');
 const adminPresenceRoutes = require('./routes/adminPresence');
+const visitorsRoutes = require('./routes/visitors');
 const User = require('./models/User');
 const { router: eventsRoutes } = require('./routes/events');
 
@@ -73,6 +78,7 @@ app.use('/api/admin/game-results', gameResultsRoutes);
 app.use('/api/admin/daily-results', dailyGameResultsRoutes);
 app.use('/api/admin/users', adminUsersRoutes);
 app.use('/api/admin/presence', adminPresenceRoutes);
+app.use('/api/visitors', visitorsRoutes);
 app.use('/api/events', eventsRoutes);
 
 // Health check
