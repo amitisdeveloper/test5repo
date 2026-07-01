@@ -1,4 +1,4 @@
-import { Trophy, Clock, TrendingUp, RefreshCw, Users } from 'lucide-react';
+import { Trophy, Clock, TrendingUp, RefreshCw } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import AdminLogin from './components/AdminLogin';
@@ -187,7 +187,6 @@ function HomePage() {
   const [sessionDateYYYYMMDD, setSessionDateYYYYMMDD] = useState<string>(() => getSessionStartDateIST());
   const [currentTimeMarker, setCurrentTimeMarker] = useState(() => Date.now());
   const [deadZone, setDeadZone] = useState(() => isInDeadZone());
-  const [visitorCount, setVisitorCount] = useState<number | null>(null);
   const isFirstLoad = useRef(true);
   const sortedResults = sortGamesByDeclarationTime(todaysResults);
   const currentISTGameTime = getCurrentISTGameTimeSortValue();
@@ -205,9 +204,7 @@ function HomePage() {
     fetch('/api/visitors/visit', { method: 'POST', credentials: 'same-origin' })
       .then((response) => {
         if (!response.ok) throw new Error('Failed to register visit');
-        return response.json();
       })
-      .then((data) => setVisitorCount(Number(data.count)))
       .catch((visitError) => console.error('Visitor counter unavailable:', visitError));
 
     const fetchData = async () => {
@@ -346,17 +343,6 @@ function HomePage() {
               <TrendingUp className="w-4 h-4" />
               <p className="text-sm font-semibold">Live Results & Fast Updates</p>
               <TrendingUp className="w-4 h-4" />
-            </div>
-            <div className="mt-4 flex justify-center" aria-live="polite">
-              <div className="inline-flex min-h-10 items-center gap-2 rounded-full border border-yellow-500/30 bg-black/30 px-5 py-2 text-sm text-yellow-100 shadow-lg shadow-black/20">
-                <Users className="h-4 w-4 text-yellow-400" aria-hidden="true" />
-                <span>Visitors</span>
-                <strong className="text-base text-yellow-400">
-                  {visitorCount !== null && Number.isFinite(visitorCount)
-                    ? visitorCount.toLocaleString('en-IN')
-                    : '—'}
-                </strong>
-              </div>
             </div>
           </div>
         </div>

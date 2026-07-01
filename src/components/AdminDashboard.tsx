@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X } from 'lucide-react';
+import { Users, X } from 'lucide-react';
 import { formatGameDate, formatGameDateTime } from '../utils/timezone';
 import TimePicker from './TimePicker';
 import { useAdminPresence } from '../hooks/useAdminPresence';
@@ -290,6 +290,7 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [visitorCount, setVisitorCount] = useState<number | null>(null);
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -316,6 +317,19 @@ function AdminDashboard() {
   useEffect(() => {
     fetchGames();
   }, [filters, modalState.isOpen]); // Refetch when filters change or modal closes
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    fetch('/api/visitors/count', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        return response.json();
+      })
+      .then((data) => setVisitorCount(Number(data.count)))
+      .catch((visitorError) => console.error('Visitor count unavailable:', visitorError));
+  }, []);
 
   const API_BASE = import.meta.env.DEV ? 'http://localhost:3001/api' : '/api';
 
@@ -648,6 +662,19 @@ function AdminDashboard() {
 
       {/* Main Content */}
       <main className="container mx-auto p-6">
+        <div className="mb-6 flex">
+          <div className="flex items-center gap-3 rounded-lg border border-yellow-600/30 bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 px-5 py-4">
+            <Users className="h-6 w-6 text-yellow-400" aria-hidden="true" />
+            <div>
+              <div className="text-xs font-medium uppercase tracking-wide text-yellow-400">Total Visitors</div>
+              <div className="text-2xl font-bold text-white" aria-live="polite">
+                {visitorCount !== null && Number.isFinite(visitorCount)
+                  ? visitorCount.toLocaleString('en-IN')
+                  : '—'}
+              </div>
+            </div>
+          </div>
+        </div>
         <h2 className="text-xl font-semibold text-yellow-400 mb-6">Games Management</h2>
 
         {/* Status Messages */}

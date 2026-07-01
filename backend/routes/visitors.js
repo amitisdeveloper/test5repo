@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const express = require('express');
 const { Visitor, VisitorCounter } = require('../models/Visitor');
+const verifyToken = require('../middleware/auth');
 
 const router = express.Router();
 const WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -44,16 +45,30 @@ router.post('/visit', async (req, res, next) => {
       if (error?.code !== 11000) throw error;
     }
 
-    const counter = counted
-      ? await VisitorCounter.findByIdAndUpdate(
+    if (counted) {
+      await VisitorCounter.findByIdAndUpdate(
           COUNTER_ID,
           { $inc: { count: 1 } },
           { new: true, upsert: true, setDefaultsOnInsert: true }
-        ).lean()
-      : await VisitorCounter.findById(COUNTER_ID).lean();
+        ).lean();
+    }
 
     res.set('Cache-Control', 'no-store');
-    res.json({ count: counter?.count || 0, counted });
+    res.json({ counted });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/count', verifyToken, async (req, res, next) => {
+  try {
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const counter = await VisitorCounter.findById(COUNTER_ID).lean();
+    res.set('Cache-Control', 'no-store');
+    res.json({ count: counter?.count || 0 });
   } catch (error) {
     next(error);
   }
