@@ -44,7 +44,7 @@ function AdminLogin() {
       <div className="bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 rounded-xl p-8 border-2 border-yellow-600/40 shadow-xl max-w-md w-full">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-yellow-400 mb-2">Admin Login</h1>
-          <p className="text-gray-400">555 Results Administration</p>
+          <p className="text-gray-400">Sattaking Administration</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">

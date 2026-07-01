@@ -337,7 +337,7 @@ function HomePage() {
               className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-500 mb-3"
               style={{ animation: 'glow 2s ease-in-out infinite' }}
             >
-              555 RESULTS
+              SATTAKING
             </h1>
             <div className="flex items-center justify-center gap-2 text-amber-400">
               <TrendingUp className="w-4 h-4" />
@@ -473,7 +473,7 @@ function HomePage() {
       <footer className="bg-gradient-to-b from-transparent to-amber-950/30 py-8 mt-12 border-t border-yellow-600/30">
         <div className="container mx-auto px-4">
           <div className="text-center space-y-3">
-            <p className="text-yellow-400 font-semibold">(c) 2026 555 Results Live Results. All Rights Reserved.</p>
+            <p className="text-yellow-400 font-semibold">© 2026 Sattaking Live Results. All Rights Reserved.</p>
             <p className="text-gray-500 text-sm">Play Responsibly | 18+ Only | Gambling Can Be Addictive</p>
             <div className="flex items-center justify-center gap-4 text-xs text-gray-600">
               <span>Terms & Conditions</span>
