@@ -67,10 +67,17 @@ function LatestUpdates({ latestResult, isLoading = false }: LatestUpdatesProps) 
 
   if (!displayResult) {
     return (
-      <div className="bg-gradient-to-r from-neutral-900 via-amber-950/30 to-neutral-900 py-6 border-y border-amber-600/20 relative overflow-hidden">
+      <div className="bg-gradient-to-r from-neutral-900 via-amber-950/30 to-neutral-900 py-6 border-y border-amber-600/20">
         <div className="container mx-auto px-4">
-          <div className="text-center text-gray-400">
-            <p className="text-sm">No results published yet. Check back soon!</p>
+          <div className="mx-auto max-w-md">
+            <div className="mb-4 flex items-center gap-3">
+              <Trophy className="h-7 w-7 text-amber-400" />
+              <span className="text-xl font-bold text-white">Latest Result</span>
+            </div>
+            <div className="flex items-center justify-center gap-3 rounded-xl border border-amber-600/40 bg-amber-950/50 px-6 py-6">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-yellow-300 border-t-transparent" aria-hidden="true"></div>
+              <span className="text-lg font-bold text-white">Waiting for latest result...</span>
+            </div>
           </div>
         </div>
       </div>
@@ -93,24 +100,22 @@ function LatestUpdates({ latestResult, isLoading = false }: LatestUpdatesProps) 
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-6">
-              <div className="bg-amber-900/40 backdrop-blur-sm rounded-lg px-5 py-3 border border-amber-600/30">
-                <div className="text-white font-semibold text-base">{displayResult.name}</div>
-                <div className="text-amber-300 text-sm flex items-center space-x-1">
+              <div className="flex items-center justify-between gap-6 bg-amber-900/40 backdrop-blur-sm rounded-lg px-5 py-4 border border-amber-600/30">
+                <div className="min-w-0 text-3xl font-bold leading-tight text-white">{displayResult.name}</div>
+                <div className="flex shrink-0 items-center space-x-1 text-base font-semibold text-amber-300">
                   <Clock className="w-4 h-4" />
                   <span>{displayResult.time}</span>
                 </div>
               </div>
               
-              <div className="text-white text-base">
-                <span className="text-amber-300">Result:</span>
-                <span className="font-bold text-2xl ml-2 text-white">{displayResult.result}</span>
+              <div className="flex items-center justify-between rounded-lg border border-emerald-500/40 bg-gradient-to-r from-emerald-950/80 to-green-900/50 px-5 py-4 text-base shadow-lg shadow-emerald-950/20 sm:justify-start">
+                <span className="font-semibold text-emerald-300">Result:</span>
+                <span className="ml-3 text-2xl font-black text-white">{displayResult.result}</span>
               </div>
 
-              <div className="text-gray-300 text-sm">
-                {/* <div>{displayResult.formattedDate}</div> */}
-                <span className="text-amber-300">Posted:</span>
-                <span className="font-bold text-2xl ml-2 text-white">{displayResult.formattedDate}</span>
-                {/* <div className="font-bold text-amber-400">Posted: {displayResult.formattedDate}</div> */}
+              <div className="flex items-center justify-between rounded-lg border border-sky-500/40 bg-gradient-to-r from-slate-900/90 to-sky-950/70 px-5 py-4 text-sm shadow-lg shadow-sky-950/20 sm:justify-start">
+                <span className="font-semibold text-sky-300">Posted:</span>
+                <span className="ml-3 text-2xl font-bold text-white">{displayResult.formattedDate}</span>
               </div>
             </div>
           </div>

@@ -139,6 +139,36 @@ const getSessionStartDateIST = (): string => {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(d); // YYYY-MM-DD
 };
 
+const getISTDateKey = (date: Date): string => new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(date);
+
+const isLatestResultCurrent = (latestResult: any, now: Date): boolean => {
+  if (!latestResult) return false;
+
+  const { hours } = (() => {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      hour12: false
+    }).formatToParts(now);
+    return { hours: Number(parts.find((part) => part.type === 'hour')?.value || 0) };
+  })();
+
+  // Until 10 AM, retain the final result from the previous overnight session.
+  if (hours < 10) return true;
+
+  // From 10 AM onward, an entry is visible only when its actual result date is today in IST.
+  // createdAt/postedAt cannot be used here because an old result may be edited or imported today.
+  const resultDateValue = latestResult.publishDate || latestResult.date;
+  if (!resultDateValue) return false;
+  const resultDate = new Date(resultDateValue);
+  return !Number.isNaN(resultDate.getTime()) && getISTDateKey(resultDate) === getISTDateKey(now);
+};
+
 const isResultForCurrentSession = (game: any, sessionDate: string): boolean => {
   if (!game.resultDate) return false;
   const displayDate = getDisawarDisplayDate(game.resultDate, game.nickName || '');
@@ -155,7 +185,7 @@ function HomePage() {
   const [latestResult, setLatestResult] = useState<any>(null);
   const [todayGameDate, setTodayGameDate] = useState<string>('');
   const [sessionDateYYYYMMDD, setSessionDateYYYYMMDD] = useState<string>(() => getSessionStartDateIST());
-  const [, setCurrentTimeMarker] = useState(() => Date.now());
+  const [currentTimeMarker, setCurrentTimeMarker] = useState(() => Date.now());
   const [deadZone, setDeadZone] = useState(() => isInDeadZone());
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
   const isFirstLoad = useRef(true);
@@ -167,6 +197,9 @@ function HomePage() {
         const sv = getResultTimeSortValue(game.resultTime);
         return sv !== Number.MAX_SAFE_INTEGER && sv >= currentISTGameTime && !game.hasResult;
       }) || null;
+  const visibleLatestResult = isLatestResultCurrent(latestResult, new Date(currentTimeMarker))
+    ? latestResult
+    : null;
 
   useEffect(() => {
     fetch('/api/visitors/visit', { method: 'POST', credentials: 'same-origin' })
@@ -345,7 +378,7 @@ function HomePage() {
       )}
 
       <div className="mt-8">
-        <LatestUpdates latestResult={latestResult} isLoading={loading} />
+        <LatestUpdates latestResult={visibleLatestResult} isLoading={loading} />
       </div>
 
       <main className="container mx-auto px-4 py-6 space-y-8">
@@ -366,18 +399,12 @@ function HomePage() {
           <div className="text-center mb-6">
             <h2 className="text-3xl font-bold text-yellow-400 mb-2">Today's Results Board</h2>
             <p className="text-yellow-200 text-sm mb-2">{todayGameDate}</p>
-            <div className={`inline-block text-white text-xs font-bold px-4 py-1 rounded-full ${deadZone ? 'bg-gray-600' : 'bg-red-600'}`}>
-              {deadZone ? 'Next session starts at 3:15 PM' : 'Live game status'}
-            </div>
+            {!deadZone && (
+              <div className="inline-block rounded-full bg-red-600 px-4 py-1 text-xs font-bold text-white">
+                Live game status
+              </div>
+            )}
           </div>
-
-          {deadZone && (
-            <div className="mb-6 rounded-xl border border-gray-600/40 bg-gradient-to-r from-gray-800/40 via-neutral-800/40 to-gray-800/40 p-4 text-center">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-gray-400 mb-1">Results Declared Till 9:00 AM</p>
-              <p className="text-lg font-bold text-gray-300">Next session begins at <span className="text-yellow-400">3:15 PM</span></p>
-              <p className="text-xs text-gray-500 mt-1">All results will be live from 3:15 PM onwards</p>
-            </div>
-          )}
 
           {!deadZone && nextUpcomingGame && (
             <div className="mb-6 rounded-xl border border-yellow-500/40 bg-gradient-to-r from-yellow-500/10 via-amber-500/10 to-red-500/10 p-4">
