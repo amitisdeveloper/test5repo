@@ -410,7 +410,10 @@ function HomePage() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {sortedResults.map((game: any, index: number) => {
               const isNextUpcomingGame = !deadZone && nextUpcomingGame?._id === game._id;
-              const showResult = !deadZone && game.hasResult && game.result && isResultForCurrentSession(game, sessionDateYYYYMMDD);
+              // Published results must remain visible during the daytime dead zone.
+              // The dead zone controls upcoming-game UI only; it must not override
+              // the result state returned by the API.
+              const showResult = game.hasResult && game.result && isResultForCurrentSession(game, sessionDateYYYYMMDD);
 
               return (
                 <div
