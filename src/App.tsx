@@ -12,6 +12,7 @@ import GameChart from './components/GameChart';
 import GameResultsPage from './components/GameResultsPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ArchivesPage from './components/ArchivesPage';
+import VisitorReportPage from './components/VisitorReportPage';
 import { formatGameDate, getDisawarDisplayDate } from './utils/timezone';
 
 // Session: active from 3:15 PM IST to 9:00 AM IST next day.
@@ -552,6 +553,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['admin']}>
               <GameResult />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/visitor-report"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <VisitorReportPage />
             </ProtectedRoute>
           }
         />

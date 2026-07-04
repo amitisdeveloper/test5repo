@@ -10,6 +10,10 @@ const visitorSchema = new mongoose.Schema({
   lastCountedAt: {
     type: Date,
     required: true
+  },
+  lastPeriodKey: {
+    type: String,
+    index: true
   }
 }, {
   timestamps: true,
@@ -26,6 +30,19 @@ const visitorCounterSchema = new mongoose.Schema({
     type: Number,
     default: 0,
     min: 0
+  },
+  periodKey: {
+    type: String,
+    required: true,
+    index: true
+  },
+  periodStart: {
+    type: Date,
+    required: true
+  },
+  periodEnd: {
+    type: Date,
+    required: true
   }
 }, { timestamps: true });
 

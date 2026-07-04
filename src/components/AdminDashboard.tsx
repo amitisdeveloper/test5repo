@@ -320,11 +320,10 @@ function AdminDashboard() {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    fetch('/api/visitors/count', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
+    const headers = { 'Authorization': `Bearer ${token}` };
+    fetch('/api/visitors/count', { headers })
       .then((response) => {
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) throw new Error('Unable to load visitor count');
         return response.json();
       })
       .then((data) => setVisitorCount(Number(data.count)))
@@ -645,6 +644,12 @@ function AdminDashboard() {
               Published Results
             </button>
             <button
+              onClick={() => navigate('/admin/visitor-report')}
+              className="bg-gradient-to-r from-amber-600 to-amber-700 text-white px-4 py-2 rounded-lg hover:from-amber-700 hover:to-amber-800 transition-all duration-300"
+            >
+              Visitor Report
+            </button>
+            <button
               onClick={() => navigate('/admin/users')}
               className="bg-gradient-to-r from-violet-600 to-violet-700 text-white px-4 py-2 rounded-lg hover:from-violet-700 hover:to-violet-800 transition-all duration-300"
             >
@@ -666,7 +671,7 @@ function AdminDashboard() {
           <div className="flex items-center gap-3 rounded-lg border border-yellow-600/30 bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 px-5 py-4">
             <Users className="h-6 w-6 text-yellow-400" aria-hidden="true" />
             <div>
-              <div className="text-xs font-medium uppercase tracking-wide text-yellow-400">Total Visitors</div>
+              <div className="text-xs font-medium uppercase tracking-wide text-yellow-400">Current Day Visitors</div>
               <div className="text-2xl font-bold text-white" aria-live="polite">
                 {visitorCount !== null && Number.isFinite(visitorCount)
                   ? visitorCount.toLocaleString('en-IN')
