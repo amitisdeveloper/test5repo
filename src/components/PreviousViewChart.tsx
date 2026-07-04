@@ -105,7 +105,7 @@ function PreviousViewChart({ games }: PreviousViewChartProps) {
       </div>
 
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex bg-black/85 p-2 backdrop-blur-sm sm:p-5" role="dialog" aria-modal="true" aria-labelledby="previous-chart-title" onMouseDown={e => e.target === e.currentTarget && setIsOpen(false)}>
+        <div className="fixed inset-0 z-[100] flex bg-black/85 px-3 py-2 backdrop-blur-sm sm:p-5" role="dialog" aria-modal="true" aria-labelledby="previous-chart-title" onMouseDown={e => e.target === e.currentTarget && setIsOpen(false)}>
           <div className="m-auto flex max-h-[96vh] w-full max-w-[1600px] flex-col overflow-hidden rounded-2xl border-2 border-yellow-500/50 bg-neutral-950 shadow-2xl">
             <div className="flex shrink-0 items-center justify-between border-b border-yellow-500/30 px-4 py-4 sm:px-6">
               <div>
@@ -120,19 +120,19 @@ function PreviousViewChart({ games }: PreviousViewChartProps) {
             </div>
             <div className="min-h-0 flex-1 overflow-auto">
               {loading ? <div className="p-12 text-center font-bold text-yellow-400">Loading chart...</div> : error ? <div className="p-12 text-center font-bold text-red-300">{error}</div> : (
-                <table className="min-w-max w-full border-collapse text-center text-sm">
+                <table className="min-w-max w-full border-collapse text-center text-[9px] sm:text-sm">
                   <thead className="sticky top-0 z-20 bg-amber-50 text-neutral-950">
                     <tr>
-                      <th className="sticky left-0 z-30 min-w-32 border border-amber-300 bg-amber-50 px-4 py-4 font-black">DATE</th>
-                      {visibleGames.map(game => <th key={game._id} className="min-w-32 border border-neutral-300 px-4 py-4 font-black uppercase">{game.nickName || game.name}</th>)}
+                      <th className="sticky left-0 z-30 w-16 min-w-16 border border-amber-300 bg-amber-50 px-1 py-3 font-black sm:w-auto sm:min-w-32 sm:px-4 sm:py-4">DATE</th>
+                      {visibleGames.map(game => <th key={game._id} className="w-16 min-w-16 max-w-16 break-words border border-neutral-300 px-1 py-3 font-black uppercase sm:w-auto sm:min-w-32 sm:max-w-none sm:px-4 sm:py-4">{game.nickName || game.name}</th>)}
                     </tr>
                   </thead>
                   <tbody>
                     {days.map(day => {
                       const dateKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                       return <tr key={day} className="hover:bg-white/5">
-                        <th className="sticky left-0 z-10 border border-yellow-600/30 bg-amber-950 px-4 py-3 font-black text-yellow-100">{String(day).padStart(2, '0')}-{String(selectedMonth + 1).padStart(2, '0')}-{selectedYear}</th>
-                        {visibleGames.map(game => <td key={game._id} className="border border-white/20 px-4 py-3 text-base font-bold text-white">{resultsMap.get(`${dateKey}:${game._id}`) || '-'}</td>)}
+                        <th className="sticky left-0 z-10 border border-yellow-600/30 bg-amber-950 px-1 py-2.5 font-black text-yellow-100 sm:px-4 sm:py-3">{String(day).padStart(2, '0')}-{String(selectedMonth + 1).padStart(2, '0')}-{selectedYear}</th>
+                        {visibleGames.map(game => <td key={game._id} className="border border-white/20 px-1 py-2.5 text-[11px] font-bold text-white sm:px-4 sm:py-3 sm:text-base">{resultsMap.get(`${dateKey}:${game._id}`) || '-'}</td>)}
                       </tr>;
                     })}
                   </tbody>
