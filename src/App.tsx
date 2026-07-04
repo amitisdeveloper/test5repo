@@ -13,6 +13,7 @@ import GameResultsPage from './components/GameResultsPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ArchivesPage from './components/ArchivesPage';
 import VisitorReportPage from './components/VisitorReportPage';
+import PreviousViewChart from './components/PreviousViewChart';
 import { formatGameDate, getDisawarDisplayDate } from './utils/timezone';
 
 // Session: active from 3:15 PM IST to 9:00 AM IST next day.
@@ -369,6 +370,8 @@ function HomePage() {
       </div>
 
       <main className="container mx-auto px-4 py-6 space-y-8">
+        <PreviousViewChart games={sortedResults} />
+
         <section>
           <div className="flex items-center gap-3 mb-6">
             <div className="h-1 flex-1 bg-gradient-to-r from-transparent via-yellow-500 to-yellow-500 rounded"></div>
