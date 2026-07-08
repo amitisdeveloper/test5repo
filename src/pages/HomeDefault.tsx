@@ -90,7 +90,7 @@ function sortGamesByResultTimeAsc<T extends { resultTime?: string | null; nickNa
 }
 
 function getGameName(game?: Game | null) {
-  return game?.nickName || game?.name || game?.gameName || 'मार्केट';
+  return game?.nickName || game?.name || game?.gameName || 'Market';
 }
 
 function getResultText(game?: Game | null) {
@@ -116,9 +116,9 @@ function formatDuration(totalSeconds: number) {
 }
 
 function getFilterLabel(filter: 'all' | 'published' | 'pending') {
-  if (filter === 'all') return 'सभी';
-  if (filter === 'published') return 'प्रकाशित';
-  return 'लंबित';
+  if (filter === 'all') return 'All';
+  if (filter === 'published') return 'Published';
+  return 'Pending';
 }
 
 function HomeDefault() {
@@ -129,7 +129,7 @@ function HomeDefault() {
   const [error, setError] = useState<string | null>(null);
   const [selectedGameForChart, setSelectedGameForChart] = useState<string | null>(null);
   const [latestResult, setLatestResult] = useState<Game | null>(null);
-  const [todayGameDate, setTodayGameDate] = useState('आज');
+  const [todayGameDate, setTodayGameDate] = useState('Today');
   const [clockTick, setClockTick] = useState(() => Date.now());
   const isFirstLoad = useRef(true);
 
@@ -162,12 +162,12 @@ function HomeDefault() {
         setAllGames(sortGamesByResultTimeAsc(gamesData.games || []));
         setUpcomingGames(sortGamesByResultTimeAsc(gamesData.upcomingGames || []));
         setTodaysResults(sortGamesByResultTimeAsc(gamesData.gamesWithResults || []));
-        setTodayGameDate(gamesData.todayGameDate || gamesData.todayDateIST || 'आज');
+        setTodayGameDate(gamesData.todayGameDate || gamesData.todayDateIST || 'Today');
         setLatestResult(latestResultData);
         setError(null);
       } catch (fetchError) {
         console.error('Error fetching data:', fetchError);
-        setError('लाइव फीड से कनेक्शन नहीं हो पा रहा है। कृपया कुछ देर बाद फिर देखें।');
+        setError('Live feed से connection नहीं हो पा रहा है। कृपया थोड़ी देर बाद फिर try करें।');
       } finally {
         if (isFirstLoad.current) {
           setLoading(false);
@@ -327,14 +327,14 @@ function HeroSection({
               <div className="text-lg font-black tracking-wide text-yellow-200">555 Royal Live</div>
               <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-100/55">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.9)]" />
-                लाइव फीड चालू
+                Live Feed Active
               </div>
             </div>
           </motion.div>
 
           <div className="hidden items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-yellow-100/80 backdrop-blur md:flex">
             <Clock3 className="h-4 w-4 text-yellow-300" />
-            <span>{liveClock} भारतीय समय</span>
+            <span>{liveClock} IST</span>
           </div>
         </nav>
 
@@ -347,28 +347,28 @@ function HeroSection({
           <div>
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-yellow-300/20 bg-yellow-300/10 px-3 py-2 text-xs font-bold uppercase tracking-[0.22em] text-yellow-200">
               <Sparkles className="h-4 w-4" />
-              लाइव परिणाम और तेज अपडेट
+              Live Results & Fast Updates
             </div>
             <h1 className="max-w-3xl text-4xl font-black leading-tight text-white sm:text-5xl lg:text-7xl">
-              आज के सभी मार्केट परिणाम एक ही जगह।
+              आज के सभी Market Results, एक ही जगह।
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
-              नया परिणाम आते ही यहाँ अपडेट दिखेगा। समय-सारणी, पुराने परिणाम और चार्ट भी साथ में देखें।
+              नया result आते ही यहाँ update होगा। Schedule, previous results और charts भी आसानी से check करें।
             </p>
           </div>
 
           <div className="rounded-[2rem] border border-yellow-300/20 bg-white/[0.055] p-4 shadow-[0_0_80px_rgba(212,175,55,0.18)] backdrop-blur-xl">
             <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-yellow-100/55">
-              <span>आज का मुख्य संकेत</span>
+              <span>Today's Featured Result</span>
               <span className="flex items-center gap-1 text-emerald-300">
                 <Radio className="h-3.5 w-3.5" />
-                ऑनलाइन
+                Online
               </span>
             </div>
             <div className="mt-5 flex items-end justify-between gap-4">
               <div>
                 <div className="text-2xl font-black text-yellow-200">{getGameName(latestResult)}</div>
-                <div className="mt-1 text-sm text-slate-400">{latestResult?.resultTime || latestResult?.time || 'अपडेट का इंतजार है'}</div>
+                <div className="mt-1 text-sm text-slate-400">{latestResult?.resultTime || latestResult?.time || 'Update का इंतज़ार है'}</div>
               </div>
               <motion.div
                 className="text-6xl font-black tabular-nums text-yellow-300 drop-shadow-[0_0_24px_rgba(250,204,21,0.5)]"
@@ -397,7 +397,7 @@ function ResultTicker({ games }: { games: Game[] }) {
         animate={{ x: ['0%', '-50%'] }}
         transition={{ duration: 28, repeat: Infinity, ease: 'linear' }}
       >
-        {tickerText || 'लाइव मार्केट अपडेट का इंतजार है'}
+        {tickerText || 'Live market update का इंतज़ार है'}
       </motion.div>
     </div>
   );
@@ -435,12 +435,12 @@ function LiveResultCard({
                   animate={{ boxShadow: ['0 0 0 0 rgba(52,211,153,0.7)', '0 0 0 10px rgba(52,211,153,0)'] }}
                   transition={{ duration: 1.5, repeat: Infinity }}
                 />
-                लाइव परिणाम
+                Live Result
               </div>
               <h2 className="mt-3 text-3xl font-black text-white md:text-5xl">{getGameName(result)}</h2>
             </div>
             <div className="rounded-2xl border border-yellow-300/20 bg-black/30 px-4 py-3 text-right">
-              <div className="text-xs uppercase tracking-[0.2em] text-yellow-100/45">अपडेट समय</div>
+              <div className="text-xs uppercase tracking-[0.2em] text-yellow-100/45">Updated On</div>
               <div className="mt-1 text-sm font-bold text-yellow-100">
                 {result?.formattedDate || (result?.resultDate ? formatGameDate(result.resultDate) : todayGameDate)}
               </div>
@@ -458,19 +458,19 @@ function LiveResultCard({
               {loading ? '--' : getResultText(result)}
             </motion.div>
             <div className="mb-2 grid grid-cols-2 gap-3 sm:min-w-64">
-              <MetricPill label="परिणाम समय" value={result?.resultTime || result?.time || 'लाइव'} icon={<Clock3 className="h-4 w-4" />} />
-              <MetricPill label="स्थिति" value="सत्यापित" icon={<ShieldCheck className="h-4 w-4" />} />
+              <MetricPill label="Result Time" value={result?.resultTime || result?.time || 'Live'} icon={<Clock3 className="h-4 w-4" />} />
+              <MetricPill label="Status" value="Verified" icon={<ShieldCheck className="h-4 w-4" />} />
             </div>
           </div>
         </div>
 
         <div className="rounded-3xl border border-yellow-300/15 bg-[#0B0B0B]/65 p-5">
-          <div className="text-sm font-bold uppercase tracking-[0.2em] text-yellow-100/50">अगला परिणाम</div>
-          <div className="mt-3 text-2xl font-black text-yellow-200">{nextGame ? getGameName(nextGame) : 'प्रतीक्षा'}</div>
-          <div className="mt-1 text-sm text-slate-400">{nextGame?.resultTime || 'समय-सारणी अपडेट हो रही है'}</div>
+          <div className="text-sm font-bold uppercase tracking-[0.2em] text-yellow-100/50">Next Result</div>
+          <div className="mt-3 text-2xl font-black text-yellow-200">{nextGame ? getGameName(nextGame) : 'Please Wait'}</div>
+          <div className="mt-1 text-sm text-slate-400">{nextGame?.resultTime || 'Schedule update हो रहा है'}</div>
           <CountdownTimer targetTime={nextGame?.resultTime || null} clockTick={clockTick} />
           <div className="mt-5 rounded-2xl bg-yellow-300/10 p-4 text-sm text-yellow-50/75">
-            लाइव सर्वर पर नया मार्केट अपडेट आते ही परिणाम अपने आप रिफ्रेश हो जाएगा।
+            नया market update आते ही result automatically refresh हो जाएगा।
           </div>
         </div>
       </div>
@@ -495,7 +495,7 @@ function CountdownTimer({ targetTime, clockTick }: { targetTime?: string | null;
 
   return (
     <div className="mt-5 rounded-2xl border border-yellow-300/20 bg-black/40 p-4">
-      <div className="text-xs uppercase tracking-[0.2em] text-yellow-100/45">बचा हुआ समय</div>
+      <div className="text-xs uppercase tracking-[0.2em] text-yellow-100/45">Time Remaining</div>
       <div className="mt-2 font-mono text-3xl font-black text-yellow-300">{formatDuration(seconds)}</div>
     </div>
   );
@@ -505,13 +505,13 @@ function UpcomingMarketsSection({ games, clockTick }: { games: Game[]; clockTick
   return (
     <section className="mt-7">
       <SectionHeader
-        eyebrow="समय-सारणी"
-        title="आने वाले मार्केट"
-        action={<span className="text-xs text-yellow-100/50">मोबाइल पर स्वाइप करें</span>}
+        eyebrow="Schedule"
+        title="Upcoming Markets"
+        action={<span className="text-xs text-yellow-100/50">Mobile पर swipe करें</span>}
       />
       <div className="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0 lg:grid-cols-4">
         {games.length === 0 && (
-          <EmptyState message="अभी आने वाले मार्केट की जानकारी उपलब्ध नहीं है।" />
+          <EmptyState message="Upcoming market की जानकारी अभी available नहीं है।" />
         )}
         {games.slice(0, 8).map((game, index) => (
           <motion.div
@@ -525,7 +525,7 @@ function UpcomingMarketsSection({ games, clockTick }: { games: Game[]; clockTick
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-lg font-black text-white">{getGameName(game)}</div>
-                <div className="mt-1 text-sm text-slate-400">परिणाम समय {game.resultTime || 'जल्द अपडेट'}</div>
+              <div className="mt-1 text-sm text-slate-400">Result Time: {game.resultTime || 'Update Soon'}</div>
               </div>
               <StatusBadge status={game.hasResult ? 'published' : 'pending'} />
             </div>
@@ -540,11 +540,11 @@ function UpcomingMarketsSection({ games, clockTick }: { games: Game[]; clockTick
 function MarketGrid({ games, loading, onOpenChart }: { games: Game[]; loading: boolean; onOpenChart: (gameName: string) => void }) {
   return (
     <section className="mt-9">
-      <SectionHeader eyebrow="मार्केट" title="लाइव मार्केट बोर्ड" />
+      <SectionHeader eyebrow="Markets" title="Live Market Board" />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {!loading && games.length === 0 && (
           <div className="md:col-span-2 xl:col-span-4">
-            <EmptyState message="अभी कोई लाइव मार्केट उपलब्ध नहीं है।" />
+            <EmptyState message="अभी कोई live market available नहीं है।" />
           </div>
         )}
         {(loading ? Array.from({ length: 8 }) : games).map((game, index) => (
@@ -593,7 +593,7 @@ function MarketCard({
           <h3 className="truncate text-xl font-black text-white">{getGameName(game)}</h3>
           <div className="mt-1 flex items-center gap-2 text-sm text-slate-400">
             <Clock3 className="h-4 w-4 text-yellow-300" />
-            {game.resultTime || 'जल्द अपडेट'}
+            {game.resultTime || 'Update Soon'}
           </div>
         </div>
         <div className="rounded-2xl bg-yellow-300/10 p-2 text-yellow-300">
@@ -603,7 +603,7 @@ function MarketCard({
 
       <div className="mt-6 flex items-end justify-between">
         <div>
-          <div className="text-xs uppercase tracking-[0.2em] text-yellow-100/45">अभी का परिणाम</div>
+          <div className="text-xs uppercase tracking-[0.2em] text-yellow-100/45">Current Result</div>
           <div className="mt-1 text-5xl font-black text-yellow-300 drop-shadow-[0_0_20px_rgba(250,204,21,0.45)]">
             {getResultText(game)}
           </div>
@@ -617,7 +617,7 @@ function MarketCard({
         className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-yellow-300/20 bg-yellow-300/10 px-4 text-sm font-black text-yellow-100 transition hover:bg-yellow-300 hover:text-black"
       >
         <BarChart3 className="h-4 w-4" />
-        चार्ट / इतिहास
+        Chart / History
       </button>
     </motion.article>
   );
@@ -626,7 +626,7 @@ function MarketCard({
 function TrendIndicator({ active }: { active: boolean }) {
   return (
     <div className={`rounded-full px-3 py-1.5 text-xs font-black ${active ? 'bg-emerald-400/15 text-emerald-300' : 'bg-amber-400/15 text-amber-200'}`}>
-      {active ? '+ सक्रिय' : 'लंबित'}
+      {active ? '+ Active' : 'Pending'}
     </div>
   );
 }
@@ -647,7 +647,7 @@ function HistoryTable({ rows }: { rows: HistoryRow[] }) {
 
   return (
     <section id="history" className="mt-9">
-      <SectionHeader eyebrow="रिकॉर्ड" title="परिणाम इतिहास" />
+      <SectionHeader eyebrow="Records" title="Result History" />
       <div className="rounded-[2rem] border border-yellow-300/15 bg-white/[0.055] p-4 backdrop-blur-xl md:p-6">
         <div className="mb-5 grid gap-3 md:grid-cols-[1fr_auto]">
           <div className="flex min-h-12 items-center gap-3 rounded-2xl border border-white/10 bg-black/35 px-4">
@@ -659,7 +659,7 @@ function HistoryTable({ rows }: { rows: HistoryRow[] }) {
                 setPage(1);
               }}
               className="w-full bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
-              placeholder="मार्केट, तारीख या नंबर खोजें"
+              placeholder="Market, date या number search करें"
             />
           </div>
           <div className="grid grid-cols-3 rounded-2xl border border-white/10 bg-black/35 p-1">
@@ -685,10 +685,10 @@ function HistoryTable({ rows }: { rows: HistoryRow[] }) {
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="bg-yellow-300/10 text-xs uppercase tracking-[0.18em] text-yellow-100/60">
               <tr>
-                <th className="px-4 py-4">तारीख</th>
-                <th className="px-4 py-4">मार्केट</th>
-                <th className="px-4 py-4">परिणाम नंबर</th>
-                <th className="px-4 py-4">स्थिति</th>
+                <th className="px-4 py-4">Date</th>
+                <th className="px-4 py-4">Market</th>
+                <th className="px-4 py-4">Result Number</th>
+                <th className="px-4 py-4">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/10">
@@ -708,7 +708,7 @@ function HistoryTable({ rows }: { rows: HistoryRow[] }) {
 
         <div className="mt-5 flex items-center justify-between">
           <div className="text-sm text-slate-400">
-            पेज {activePage} / {totalPages}
+            Page {activePage} / {totalPages}
           </div>
           <div className="flex gap-2">
             <button
@@ -768,25 +768,25 @@ function AnalyticsCharts({ games, onOpenChart }: { games: Game[]; onOpenChart: (
   return (
     <section id="charts" className="mt-9">
       <div className="grid gap-4 lg:grid-cols-2">
-        <ChartPanel title="साप्ताहिक परिणाम प्रवाह" icon={<Activity className="h-5 w-5" />}>
+        <ChartPanel title="Weekly Result Trend" icon={<Activity className="h-5 w-5" />}>
           {resultValues.length ? (
-            <ReactApexChart options={weeklyOptions} series={[{ name: 'परिणाम', data: resultValues }]} type="area" height={300} />
+            <ReactApexChart options={weeklyOptions} series={[{ name: 'Results', data: resultValues }]} type="area" height={300} />
           ) : (
-            <EmptyState message="चार्ट के लिए अभी परिणाम उपलब्ध नहीं हैं।" />
+            <EmptyState message="Chart के लिए results अभी available नहीं हैं।" />
           )}
         </ChartPanel>
-        <ChartPanel title="मासिक मार्केट हीट" icon={<BarChart3 className="h-5 w-5" />}>
+        <ChartPanel title="Monthly Market Overview" icon={<BarChart3 className="h-5 w-5" />}>
           {resultValues.length ? (
-            <ReactApexChart options={monthlyOptions} series={[{ name: 'मार्केट हीट', data: resultValues }]} type="bar" height={300} />
+            <ReactApexChart options={monthlyOptions} series={[{ name: 'Market Overview', data: resultValues }]} type="bar" height={300} />
           ) : (
-            <EmptyState message="चार्ट के लिए अभी परिणाम उपलब्ध नहीं हैं।" />
+            <EmptyState message="Chart के लिए results अभी available नहीं हैं।" />
           )}
         </ChartPanel>
       </div>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <InsightPanel title="सक्रिय मार्केट" games={games.filter((game) => game.hasResult).slice(0, 4)} onOpenChart={onOpenChart} />
-        <InsightPanel title="ट्रेंडिंग मार्केट" games={[...games].slice(0, 4)} onOpenChart={onOpenChart} />
+        <InsightPanel title="Active Markets" games={games.filter((game) => game.hasResult).slice(0, 4)} onOpenChart={onOpenChart} />
+        <InsightPanel title="Trending Markets" games={[...games].slice(0, 4)} onOpenChart={onOpenChart} />
       </div>
     </section>
   );
@@ -809,7 +809,7 @@ function InsightPanel({ title, games, onOpenChart }: { title: string; games: Gam
     <div className="rounded-[2rem] border border-yellow-300/15 bg-white/[0.055] p-5 backdrop-blur-xl">
       <h3 className="mb-4 text-xl font-black text-white">{title}</h3>
       <div className="space-y-3">
-        {games.length === 0 && <EmptyState message="अभी जानकारी उपलब्ध नहीं है।" />}
+        {games.length === 0 && <EmptyState message="Information अभी available नहीं है।" />}
         {games.map((game, index) => (
           <button
             key={game._id || `${title}-${index}`}
@@ -819,7 +819,7 @@ function InsightPanel({ title, games, onOpenChart }: { title: string; games: Gam
           >
             <span>
               <span className="block font-bold text-white">{getGameName(game)}</span>
-              <span className="text-xs text-slate-400">{game.resultTime || 'लाइव चालू'}</span>
+              <span className="text-xs text-slate-400">{game.resultTime || 'Live Now'}</span>
             </span>
             <span className="font-mono text-2xl font-black text-yellow-300">{getResultText(game)}</span>
           </button>
@@ -831,10 +831,10 @@ function InsightPanel({ title, games, onOpenChart }: { title: string; games: Gam
 
 function BottomNavigation() {
   const items = [
-    { label: 'होम', icon: Home, href: '#' },
-    { label: 'लाइव', icon: Radio, href: '#live' },
-    { label: 'इतिहास', icon: History, href: '#history' },
-    { label: 'संपर्क', icon: Phone, href: '#contact' }
+    { label: 'Home', icon: Home, href: '#' },
+    { label: 'Live', icon: Radio, href: '#live' },
+    { label: 'History', icon: History, href: '#history' },
+    { label: 'Contact', icon: Phone, href: '#contact' }
   ];
 
   return (
@@ -869,13 +869,13 @@ function Footer() {
           <div>
             <div className="text-2xl font-black text-yellow-200">555 Royal Live</div>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-              यह वेबसाइट केवल जानकारी के लिए मार्केट परिणाम दिखाती है। जिम्मेदारी से उपयोग करें। 18+ केवल। जुआ लत लगा सकता है।
+              यह website market results केवल information के लिए दिखाती है। जिम्मेदारी से use करें। केवल 18+। Gambling की लत लग सकती है।
             </p>
             <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-400">
-              <span>गोपनीयता नीति</span>
-              <span>नियम और शर्तें</span>
-              <span>जिम्मेदार गेमिंग</span>
-              <Link to="/archives" className="text-yellow-300 hover:text-yellow-200">पुराना रिकॉर्ड</Link>
+              <span>Privacy Policy</span>
+              <span>Terms & Conditions</span>
+              <span>Responsible Gaming</span>
+              <Link to="/archives" className="text-yellow-300 hover:text-yellow-200">Old Records</Link>
             </div>
           </div>
           <div className="flex gap-3">
@@ -889,7 +889,7 @@ function Footer() {
             </a>
           </div>
         </div>
-        <div className="text-sm text-slate-500">कॉपीराइट 2026 555 Royal Live. सभी अधिकार सुरक्षित।</div>
+        <div className="text-sm text-slate-500">Copyright 2026 555 Royal Live. All rights reserved.</div>
       </div>
     </footer>
   );
@@ -912,7 +912,7 @@ function StatusBadge({ status }: { status: 'published' | 'pending' }) {
     <span className={`rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.12em] ${
       status === 'published' ? 'bg-emerald-400/15 text-emerald-300' : 'bg-yellow-300/15 text-yellow-200'
     }`}>
-      {status === 'published' ? 'प्रकाशित' : 'लंबित'}
+      {status === 'published' ? 'Published' : 'Pending'}
     </span>
   );
 }
@@ -937,7 +937,7 @@ function SkeletonBlock() {
 }
 
 function buildHistoryRows(games: Game[]): HistoryRow[] {
-  const date = new Intl.DateTimeFormat('hi-IN', {
+  const date = new Intl.DateTimeFormat('en-IN', {
     timeZone: 'Asia/Kolkata',
     day: '2-digit',
     month: 'short',
