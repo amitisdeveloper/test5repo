@@ -15,3 +15,75 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Semantic fallback theme for the redesigned result homepage. */
+.royal-home {
+  --royal-ink: #070b17;
+  --royal-panel: #111a31;
+  --royal-panel-deep: #090e1d;
+  --royal-wine: #722442;
+  --royal-gold: #d5b66f;
+  --royal-bright: #f4d35e;
+  --royal-ivory: #f8f2e5;
+  min-height: 100vh;
+  color: var(--royal-ivory) !important;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(114, 36, 66, 0.35), transparent 28%),
+    radial-gradient(circle at 88% 18%, rgba(35, 57, 112, 0.32), transparent 30%),
+    linear-gradient(180deg, #070b17 0%, #090d19 65%, #05070d 100%) !important;
+}
+
+.royal-home h1,
+.royal-home h2,
+.royal-home h3,
+.royal-home strong {
+  color: var(--royal-ivory);
+}
+
+.royal-home h1 span,
+.royal-number {
+  color: var(--royal-bright) !important;
+}
+
+.royal-header {
+  color: var(--royal-ivory) !important;
+  background: rgba(7, 11, 23, 0.9) !important;
+  border-color: rgba(213, 182, 111, 0.18) !important;
+}
+
+.royal-featured {
+  color: var(--royal-ivory) !important;
+  background: linear-gradient(135deg, #1b2748, #0b1122 72%) !important;
+  border-color: rgba(213, 182, 111, 0.35) !important;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.35) !important;
+}
+
+.royal-live {
+  color: var(--royal-ivory) !important;
+  background: linear-gradient(135deg, rgba(24, 34, 62, 0.98), rgba(13, 20, 39, 0.98)) !important;
+  border-color: rgba(213, 182, 111, 0.32) !important;
+}
+
+.royal-countdown {
+  color: var(--royal-ivory) !important;
+  background: #080c17 !important;
+  border-color: rgba(213, 182, 111, 0.26) !important;
+}
+
+.royal-home main section.mt-12 > .grid > div,
+.royal-home main section.mt-12 > .grid > article,
+.royal-home #history > div {
+  color: var(--royal-ivory) !important;
+  background: linear-gradient(145deg, rgba(20, 30, 55, 0.96), rgba(10, 16, 31, 0.96)) !important;
+  border-color: rgba(213, 182, 111, 0.2) !important;
+}
+
+.royal-home button {
+  border-color: rgba(213, 182, 111, 0.24);
+}
+
+.royal-home footer {
+  color: var(--royal-ivory) !important;
+  background: #050811 !important;
+  border-color: rgba(213, 182, 111, 0.18) !important;
+}
