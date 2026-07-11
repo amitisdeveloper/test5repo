@@ -33,7 +33,7 @@ function PublishResultModal({ isOpen, onClose, onSubmit, loading, error, todayDa
     publishedNumber: ''
   });
 
-  const API_BASE = import.meta.env.DEV ? 'http://localhost:3001/api' : '/api';
+  const API_BASE = '/api';
 
   useEffect(() => {
     if (isOpen) {

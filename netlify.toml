@@ -14,5 +14,6 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/:splat"
+  to = "https://result.555xch.pro/api/:splat"
   status = 200
+  force = true

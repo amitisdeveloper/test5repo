@@ -1,6 +1,4 @@
-export const API_BASE = import.meta.env.DEV
-  ? 'http://localhost:3001/api'
-  : '/api';
+export const API_BASE = '/api';
 
 export const apiCall = async (endpoint: string, options: RequestInit = {}) => {
   const url = `${API_BASE}${endpoint}`;

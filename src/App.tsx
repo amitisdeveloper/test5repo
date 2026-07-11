@@ -327,24 +327,25 @@ function HomePage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-neutral-950 via-neutral-900 to-neutral-950 text-white">
-      <header className="relative py-8 px-4">
-        <div className="absolute inset-0 bg-gradient-to-b from-amber-900/20 to-transparent"></div>
+    <div className="min-h-screen overflow-x-hidden bg-[#040008] text-white [font-family:Georgia,'Times_New_Roman',serif]">
+      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_50%_8%,rgba(95,32,151,0.58),transparent_27%),radial-gradient(circle_at_50%_72%,rgba(58,18,101,0.46),transparent_32%),linear-gradient(180deg,#040008_0%,#05000a_42%,#170029_100%)]" />
+      <header className="relative border-b border-[#7d6035]/60 px-4 py-8 sm:py-10">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(95,33,145,0.72),transparent_31%),linear-gradient(180deg,#05000d_0%,#07000d_100%)]"></div>
         <div className="container mx-auto relative z-10">
           <div className="text-center mb-6">
-            <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-yellow-500 via-amber-600 to-yellow-700 rounded-full mb-4 shadow-xl border-4 border-yellow-400/30">
-              <Trophy className="w-12 h-12 text-white" />
+            <div className="mb-4 inline-flex h-24 w-24 items-center justify-center rounded-full border border-[#ffe68b] bg-[linear-gradient(145deg,#ffe278,#a97015)] shadow-[0_0_0_13px_rgba(120,62,143,0.34),0_18px_55px_rgba(0,0,0,0.38)] sm:h-28 sm:w-28">
+              <Trophy className="h-11 w-11 text-[#ffe990]/0" />
             </div>
             <h1
-              className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-500 mb-3"
+              className="mb-3 text-[clamp(3rem,8vw,5.8rem)] font-black uppercase leading-none tracking-[0.12em] text-[#ffe990] drop-shadow-[0_5px_18px_rgba(0,0,0,0.55)]"
               style={{ animation: 'glow 2s ease-in-out infinite' }}
             >
-              SATTAKING999
+              555 Results
             </h1>
-            <div className="flex items-center justify-center gap-2 text-amber-400">
-              <TrendingUp className="w-4 h-4" />
-              <p className="text-sm font-semibold">Live Results & Fast Updates</p>
-              <TrendingUp className="w-4 h-4" />
+            <div className="flex items-center justify-center gap-2 text-[#f2c957]">
+              <TrendingUp className="h-4 w-4 opacity-0" />
+              <p className="text-xs font-black uppercase tracking-[0.22em] sm:text-sm">Live Results & Fast Updates</p>
+              <TrendingUp className="h-4 w-4 opacity-0" />
             </div>
           </div>
         </div>
@@ -369,43 +370,43 @@ function HomePage() {
         <LatestUpdates latestResult={visibleLatestResult} isLoading={loading} />
       </div>
 
-      <main className="container mx-auto px-4 py-6 space-y-8">
+      <main className="container mx-auto space-y-8 px-4 py-8 sm:py-10">
         <PreviousViewChart games={sortedResults} />
 
         <section>
           <div className="flex items-center gap-3 mb-6">
-            <div className="h-1 flex-1 bg-gradient-to-r from-transparent via-yellow-500 to-yellow-500 rounded"></div>
-            <h2 className="text-2xl font-bold text-yellow-400 flex items-center gap-2">
-              <Clock className="w-6 h-6" />
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#6f562e] to-[#ffe990]"></div>
+            <h2 className="flex items-center gap-2 text-2xl font-black uppercase text-[#ffe990] sm:text-3xl">
+              <Clock className="h-6 w-6 opacity-0" />
               Featured Games
             </h2>
-            <div className="h-1 flex-1 bg-gradient-to-l from-transparent via-yellow-500 to-yellow-500 rounded"></div>
+            <div className="h-px flex-1 bg-gradient-to-l from-transparent via-[#6f562e] to-[#ffe990]"></div>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 mb-8"></div>
         </section>
 
-        <div className="bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 rounded-xl p-6 border-2 border-yellow-600/40 shadow-xl">
+        <div className="min-h-[620px] rounded-lg border border-[#7d6035]/60 bg-[linear-gradient(180deg,rgba(5,0,12,0.95)_0%,rgba(8,0,18,0.96)_55%,rgba(31,2,62,0.95)_100%)] p-4 shadow-[0_0_80px_rgba(92,43,151,0.45)] sm:p-6">
           <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-yellow-400 mb-2">Today's Results Board</h2>
-            <p className="text-yellow-200 text-sm mb-2">{todayGameDate}</p>
+            <h2 className="mb-2 text-[clamp(2rem,5vw,3rem)] font-black uppercase text-[#ffe990]">Today's Results Board</h2>
+            <p className="mb-2 text-sm font-black text-[#ffe990]/85">{todayGameDate}</p>
             {!deadZone && (
-              <div className="inline-block rounded-full bg-red-600 px-4 py-1 text-xs font-bold text-white">
+              <div className="inline-block rounded-full border border-[#d58a55]/70 bg-[#8d1749]/85 px-4 py-1 text-xs font-bold text-white">
                 Live game status
               </div>
             )}
           </div>
 
           {!deadZone && nextUpcomingGame && (
-            <div className="mb-6 rounded-xl border border-yellow-500/40 bg-gradient-to-r from-yellow-500/10 via-amber-500/10 to-red-500/10 p-4">
+            <div className="mb-6 rounded-lg border border-[#7d6035]/70 bg-[linear-gradient(100deg,rgba(57,39,42,0.92)_0%,rgba(42,10,84,0.92)_100%)] p-5 shadow-[inset_0_1px_0_rgba(255,231,153,0.12)]">
               <div className="flex flex-col gap-2 text-center sm:flex-row sm:items-center sm:justify-between sm:text-left">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-yellow-300">Next Game Announcement</p>
-                  <h3 className="mt-1 text-2xl font-black text-white">{nextUpcomingGame.nickName}</h3>
+                  <p className="text-xs font-black uppercase tracking-[0.24em] text-[#ffe990]/85">Next Game Announcement</p>
+                  <h3 className="mt-2 text-3xl font-black text-white">{nextUpcomingGame.nickName}</h3>
                 </div>
-                <div className="rounded-lg bg-black/20 px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-yellow-200">Result Time</p>
-                  <p className="mt-1 text-lg font-bold text-yellow-400">{nextUpcomingGame.resultTime || 'Time not set'}</p>
+                <div className="rounded-md bg-[#11051f]/80 px-5 py-4">
+                  <p className="text-xs font-black uppercase tracking-wider text-[#ffe990]/75">Result Time</p>
+                  <p className="mt-1 text-2xl font-black text-[#ffe990]">{nextUpcomingGame.resultTime || 'Time not set'}</p>
                 </div>
               </div>
             </div>
@@ -422,29 +423,29 @@ function HomePage() {
               return (
                 <div
                   key={index}
-                  className="bg-gradient-to-br from-neutral-950/80 to-amber-950/40 rounded-lg p-4 border border-yellow-600/30 transition-all duration-300 hover:scale-105 hover:border-yellow-400 hover:shadow-lg hover:shadow-yellow-600/10"
+                  className="rounded-md border border-[#4b2465]/90 bg-[#19072e]/82 p-4 shadow-[0_12px_32px_rgba(0,0,0,0.14)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#ffe990]/45 hover:shadow-[0_0_38px_rgba(107,54,177,0.28)]"
                 >
                   {isNextUpcomingGame && (
                     <div className="mb-3 flex justify-center">
-                      <span className="rounded-full bg-red-600 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white animate-pulse shadow-lg shadow-red-900/40">
+                      <span className="animate-pulse rounded-full border border-[#d58a55]/70 bg-[#8d1749]/85 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white shadow-lg shadow-red-950/40">
                         Upcoming
                       </span>
                     </div>
                   )}
-                  <h4 className="text-yellow-400 font-bold text-center mb-1 text-sm">{game.nickName}</h4>
+                  <h4 className="mb-1 text-center text-sm font-black text-[#ffe990]/80">{game.nickName}</h4>
                   {game.resultTime && (
-                    <p className="text-blue-400 text-xs text-center mb-2">Result Time: {game.resultTime}</p>
+                    <p className="mb-2 text-center text-xs font-bold text-[#bba1cf]/75">Result Time: {game.resultTime}</p>
                   )}
 
                   {showResult ? (
                     <>
                       <div className="text-center">
-                        <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-lg py-3 px-6 mb-3 shadow-md">
+                        <div className="mb-3 rounded-md border border-[#2f173f] bg-[#09020f]/92 px-6 py-3 shadow-md">
                           <span className="text-white font-bold text-xl">{game.result}</span>
                         </div>
                         <button
                           onClick={() => setSelectedGameForChart(game.nickName)}
-                          className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white font-bold py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300 hover:shadow-lg hover:shadow-red-600/50 transform hover:-translate-y-0.5"
+                          className="w-full rounded-md bg-[linear-gradient(100deg,#8f38da_0%,#db9a00_100%)] py-2 font-black text-white transition-all duration-300 hover:brightness-110"
                         >
                           View Chart
                         </button>
@@ -452,13 +453,13 @@ function HomePage() {
                     </>
                   ) : (
                     <div className="text-center">
-                      <div className="bg-gradient-to-r from-gray-700 to-gray-800 rounded-lg py-3 px-6 mb-3 shadow-md flex items-center justify-center gap-2">
-                        <RefreshCw className="w-4 h-4 text-yellow-300 animate-spin" />
+                      <div className="mb-3 flex items-center justify-center gap-2 rounded-md border border-[#2f173f] bg-[#09020f]/92 px-6 py-3 shadow-md">
+                        <RefreshCw className="w-4 h-4 text-[#ffe990] animate-spin" />
                         <span className="text-white font-bold text-sm">{deadZone ? 'Waiting...' : 'Loading'}</span>
                       </div>
                       <button
                         onClick={() => setSelectedGameForChart(game.nickName)}
-                        className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white font-bold py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300 hover:shadow-lg hover:shadow-red-600/50 transform hover:-translate-y-0.5"
+                        className="w-full rounded-md bg-[linear-gradient(100deg,#8f38da_0%,#db9a00_100%)] py-2 font-black text-white transition-all duration-300 hover:brightness-110"
                       >
                         View Chart
                       </button>
@@ -469,7 +470,7 @@ function HomePage() {
             })}
 
             {sortedResults.length === 0 && (
-              <div className="col-span-full text-center text-gray-400 py-8">
+              <div className="col-span-full py-8 text-center text-[#b9a8c6]/75">
                 <p className="text-lg">No active games available</p>
               </div>
             )}
@@ -477,19 +478,19 @@ function HomePage() {
         </div>
       </main>
 
-      <footer className="bg-gradient-to-b from-transparent to-amber-950/30 py-8 mt-12 border-t border-yellow-600/30">
+      <footer className="mt-12 border-t border-[#7d6035]/45 bg-[#030007]/90 py-8">
         <div className="container mx-auto px-4">
           <div className="text-center space-y-3">
-            <p className="text-yellow-400 font-semibold">© 2026 Sattaking999 Live Results. All Rights Reserved.</p>
-            <p className="text-gray-500 text-sm">Play Responsibly | 18+ Only | Gambling Can Be Addictive</p>
-            <div className="flex items-center justify-center gap-4 text-xs text-gray-600">
+            <p className="font-black text-[#ffe990]">© 2026 555 Results Live Results. All Rights Reserved.</p>
+            <p className="text-sm font-bold text-[#b9a8c6]/70">Play Responsibly | 18+ Only | Gambling Can Be Addictive</p>
+            <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-bold text-[#b9a8c6]/70">
               <span>Terms & Conditions</span>
               <span>|</span>
               <span>Privacy Policy</span>
               <span>|</span>
               <span>Responsible Gaming</span>
               <span>|</span>
-              <Link to="/archives" className="text-yellow-500 hover:text-yellow-400 transition-colors">
+              <Link to="/archives" className="text-[#ffe990] transition-colors hover:text-white">
                 Archives
               </Link>
             </div>

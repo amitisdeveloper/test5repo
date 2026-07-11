@@ -330,7 +330,7 @@ function AdminDashboard() {
       .catch((visitorError) => console.error('Visitor count unavailable:', visitorError));
   }, []);
 
-  const API_BASE = import.meta.env.DEV ? 'http://localhost:3001/api' : '/api';
+  const API_BASE = '/api';
 
   const fetchGames = async (page = 1) => {
     try {

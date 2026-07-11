@@ -52,7 +52,7 @@ function GameResultsPage() {
   const token = localStorage.getItem('token');
   const role = localStorage.getItem('role');
   const isAdmin = role === 'admin';
-  const API_BASE = import.meta.env.DEV ? 'http://localhost:3001/api' : '/api';
+  const API_BASE = '/api';
 
   // Fetch results
   const fetchResults = async (

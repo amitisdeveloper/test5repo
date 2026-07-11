@@ -87,29 +87,29 @@ function PreviousViewChart({ games }: PreviousViewChartProps) {
   }, [results]);
 
   return (
-    <section className="rounded-2xl border border-yellow-600/40 bg-gradient-to-r from-amber-950 via-neutral-950 to-amber-950 p-5 shadow-xl">
+    <section className="rounded-lg border border-[#7d6035]/55 bg-[linear-gradient(100deg,rgba(28,7,47,0.88),rgba(5,0,12,0.96),rgba(28,7,47,0.88))] p-5 shadow-[0_0_48px_rgba(92,43,151,0.24)]">
       <div className="mb-4 flex items-center justify-center gap-2">
-        <CalendarDays className="h-5 w-5 text-yellow-400" />
-        <h2 className="text-xl font-black text-white">Previous View Chart</h2>
+        <CalendarDays className="h-5 w-5 text-[#ffe990]" />
+        <h2 className="text-xl font-black uppercase text-[#ffe990]">Previous View Chart</h2>
       </div>
       <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-        <select aria-label="Chart year" value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} className="h-12 rounded-lg border border-white/20 bg-white px-4 font-semibold text-neutral-900 outline-none focus:border-yellow-400">
+        <select aria-label="Chart year" value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} className="h-12 rounded-md border border-[#7d6035]/55 bg-[#09020f] px-4 font-semibold text-white outline-none focus:border-[#ffe990]">
           {years.map(year => <option key={year} value={year}>{year}</option>)}
         </select>
-        <select aria-label="Chart month" value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))} className="h-12 rounded-lg border border-white/20 bg-white px-4 font-semibold text-neutral-900 outline-none focus:border-yellow-400">
+        <select aria-label="Chart month" value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))} className="h-12 rounded-md border border-[#7d6035]/55 bg-[#09020f] px-4 font-semibold text-white outline-none focus:border-[#ffe990]">
           {MONTHS.map((month, index) => <option key={month} value={index}>{month}</option>)}
         </select>
-        <button onClick={() => setIsOpen(true)} className="flex h-12 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 px-8 font-black text-white transition hover:from-orange-600 hover:to-amber-600">
+        <button onClick={() => setIsOpen(true)} className="flex h-12 items-center justify-center gap-2 rounded-md bg-[linear-gradient(100deg,#8f38da_0%,#db9a00_100%)] px-8 font-black text-white transition hover:brightness-110">
           <Search className="h-5 w-5" /> View Chart
         </button>
       </div>
 
       {isOpen && (
         <div className="fixed inset-0 z-[100] flex bg-black/85 px-3 py-2 backdrop-blur-sm sm:p-5" role="dialog" aria-modal="true" aria-labelledby="previous-chart-title" onMouseDown={e => e.target === e.currentTarget && setIsOpen(false)}>
-          <div className="m-auto flex max-h-[96vh] w-full max-w-[1600px] flex-col overflow-hidden rounded-2xl border-2 border-yellow-500/50 bg-neutral-950 shadow-2xl">
-            <div className="flex shrink-0 items-center justify-between border-b border-yellow-500/30 px-4 py-4 sm:px-6">
+          <div className="m-auto flex max-h-[96vh] w-full max-w-[1600px] flex-col overflow-hidden rounded-lg border-2 border-[#7d6035]/60 bg-[#05000c] shadow-2xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-[#7d6035]/45 px-4 py-4 sm:px-6">
               <div>
-                <h2 id="previous-chart-title" className="text-xl font-black text-yellow-400 sm:text-2xl">Previous View Chart</h2>
+                <h2 id="previous-chart-title" className="text-xl font-black text-[#ffe990] sm:text-2xl">Previous View Chart</h2>
                 <p className="mt-1 text-sm font-semibold text-white">{MONTHS[selectedMonth]} {selectedYear}</p>
               </div>
               <button onClick={() => setIsOpen(false)} aria-label="Close chart" className="rounded-full border border-white/20 p-2 text-white transition hover:bg-white/10"><X className="h-6 w-6" /></button>
@@ -119,7 +119,7 @@ function PreviousViewChart({ games }: PreviousViewChartProps) {
               <select aria-label="Modal chart month" value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))} className="rounded-lg bg-white px-3 py-2 font-semibold text-neutral-900">{MONTHS.map((month, index) => <option key={month} value={index}>{month}</option>)}</select>
             </div>
             <div className="min-h-0 flex-1 overflow-auto">
-              {loading ? <div className="p-12 text-center font-bold text-yellow-400">Loading chart...</div> : error ? <div className="p-12 text-center font-bold text-red-300">{error}</div> : (
+              {loading ? <div className="p-12 text-center font-bold text-[#ffe990]">Loading chart...</div> : error ? <div className="p-12 text-center font-bold text-red-300">{error}</div> : (
                 <table className="min-w-max w-full border-collapse text-center text-[9px] sm:text-sm">
                   <thead className="sticky top-0 z-20 bg-amber-50 text-neutral-950">
                     <tr>
