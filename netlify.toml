@@ -17,3 +17,8 @@
   to = "https://result.555xch.pro/api/:splat"
   status = 200
   force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

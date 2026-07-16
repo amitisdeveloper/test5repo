@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Archive, Calendar, Search, ArrowLeft } from 'lucide-react';
 import { formatGameDate, formatGameTime, getDisawarDisplayDate } from '../utils/timezone';
+import './ArchivesPage.css';
 
 interface ArchivedResult {
   _id: string;
@@ -16,6 +17,10 @@ interface ArchivedResult {
 }
 
 function ArchivesPage() {
+  const [searchParams] = useSearchParams();
+  const requestedTheme = searchParams.get('theme');
+  const theme = requestedTheme === 'glass' || requestedTheme === 'editorial' ? requestedTheme : 'premium';
+  const homeRoute = theme === 'glass' ? '/home-2' : theme === 'editorial' ? '/home-3' : '/home-1';
   const [results, setResults] = useState<ArchivedResult[]>([]);
   const [filteredResults, setFilteredResults] = useState<ArchivedResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,7 +112,7 @@ function ArchivesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-neutral-950 via-neutral-900 to-neutral-950 text-white flex items-center justify-center">
+      <div className={`archive-page archive-${theme} min-h-screen text-white flex items-center justify-center`}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto mb-4"></div>
           <p className="text-gray-400">Loading archives...</p>
@@ -117,9 +122,9 @@ function ArchivesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-neutral-950 via-neutral-900 to-neutral-950 text-white">
+    <div className={`archive-page archive-${theme} min-h-screen text-white`}>
       {/* Header */}
-      <header className="relative py-8 px-4 border-b border-yellow-600/30">
+      <header className="archive-header relative py-8 px-4 border-b border-yellow-600/30">
         <div className="container mx-auto relative z-10">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
@@ -127,7 +132,7 @@ function ArchivesPage() {
               <h1 className="text-4xl font-bold text-yellow-400">Results Archives</h1>
             </div>
             <Link 
-              to="/" 
+              to={homeRoute}
               className="flex items-center gap-2 px-4 py-2 bg-yellow-600/20 hover:bg-yellow-600/40 rounded-lg border border-yellow-600/40 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -140,7 +145,7 @@ function ArchivesPage() {
 
       {/* Filters */}
       <div className="container mx-auto px-4 py-8">
-        <div className="bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 rounded-xl p-6 border-2 border-yellow-600/40 shadow-xl mb-8">
+        <div className="archive-filter bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 rounded-xl p-6 border-2 border-yellow-600/40 shadow-xl mb-8">
           <h2 className="text-xl font-bold text-yellow-400 mb-6">Filter Archives</h2>
           
           <div className="grid md:grid-cols-3 gap-4">
@@ -223,7 +228,7 @@ function ArchivesPage() {
           )}
 
           {filteredResults.length === 0 ? (
-            <div className="bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 rounded-xl p-8 border-2 border-yellow-600/40 text-center">
+            <div className="archive-empty bg-gradient-to-br from-amber-950/70 via-neutral-900 to-amber-950/70 rounded-xl p-8 border-2 border-yellow-600/40 text-center">
               <Archive className="w-12 h-12 text-yellow-600/50 mx-auto mb-4" />
               <p className="text-gray-400 text-lg">No archived results found</p>
               <p className="text-gray-500 text-sm mt-2">Try adjusting your filters</p>
@@ -238,13 +243,13 @@ function ArchivesPage() {
                   {groupedResults[dateKey].map(result => (
                     <div
                       key={result._id}
-                      className="bg-gradient-to-br from-neutral-950/80 to-amber-950/40 rounded-lg p-4 border border-yellow-600/30 transition-all duration-300 hover:scale-105 hover:border-yellow-400 hover:shadow-lg hover:shadow-yellow-600/10"
+                      className="archive-card bg-gradient-to-br from-neutral-950/80 to-amber-950/40 rounded-lg p-4 border border-yellow-600/30 transition-all duration-300 hover:scale-105 hover:border-yellow-400 hover:shadow-lg hover:shadow-yellow-600/10"
                     >
                       <h4 className="text-yellow-400 font-bold text-center mb-3 text-sm">
                         {result.gameId.nickName}
                       </h4>
                       <div className="text-center">
-                        <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-lg py-4 px-6 mb-3 shadow-md">
+                        <div className="archive-number bg-gradient-to-br from-green-600 to-green-700 rounded-lg py-4 px-6 mb-3 shadow-md">
                           <span className="text-white font-bold text-2xl">{result.publishedNumber}</span>
                         </div>
                         <p className="text-gray-500 text-xs">
@@ -261,7 +266,7 @@ function ArchivesPage() {
       </div>
 
       {/* Footer */}
-      <footer className="bg-gradient-to-b from-transparent to-amber-950/30 py-8 mt-12 border-t border-yellow-600/30">
+      <footer className="archive-footer bg-gradient-to-b from-transparent to-amber-950/30 py-8 mt-12 border-t border-yellow-600/30">
         <div className="container mx-auto px-4">
           <div className="text-center space-y-3">
             <p className="text-yellow-400 font-semibold">© 2026 Sattaking999 Live Results. All Rights Reserved.</p>

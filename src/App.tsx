@@ -15,6 +15,9 @@ import ArchivesPage from './components/ArchivesPage';
 import VisitorReportPage from './components/VisitorReportPage';
 import PreviousViewChart from './components/PreviousViewChart';
 import { formatGameDate, getDisawarDisplayDate } from './utils/timezone';
+import HomeOne from './pages/HomeOne';
+import HomeTwo from './pages/HomeTwo';
+import HomeThree from './pages/HomeThree';
 
 // Session: active from 3:15 PM IST to 9:00 AM IST next day.
 // Dead zone: 9:00 AM IST to 3:14 PM IST — show all games as loading.
@@ -510,6 +513,9 @@ function App() {
     <Router future={{ v7_startTransition: true }}>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/home-1" element={<HomeOne />} />
+        <Route path="/home-2" element={<HomeTwo />} />
+        <Route path="/home-3" element={<HomeThree />} />
         <Route path="/archives" element={<ArchivesPage />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route
