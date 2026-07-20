@@ -1,12 +1,16 @@
 import { CalendarDays, Clock3, Search, ShieldCheck, Sparkles, Trophy } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import PreviousViewChart from '../PreviousViewChart';
 import GameChart from '../GameChart';
 import { HomeGame, resultIsCurrent, useHomepageResults } from '../../hooks/useHomepageResults';
 import './home-experience.css';
 
 type Theme = 'premium' | 'glass' | 'editorial';
+type HomeExperienceProps = {
+  theme: Theme;
+  domain: string;
+};
 const gameName = (game?: HomeGame | null) => game?.nickName || game?.name || 'Scheduled game';
 const latestView = (latest: any) => latest ? { name: latest.name || latest.gameName || 'Latest game', result: latest.result || latest.publishedNumber || '—', time: latest.time || 'Time not set', date: latest.formattedDate || 'Today' } : null;
 
@@ -20,22 +24,33 @@ function ResultCard({ game, next, sessionDate, onChart }: { game: HomeGame; next
   </article>;
 }
 
-export default function HomeExperience({ theme }: { theme: Theme }) {
+export default function HomeExperience({ theme, domain }: HomeExperienceProps) {
   const data = useHomepageResults(); const [chart, setChart] = useState<string | null>(null); const latest = latestView(data.latestResult);
   const title = theme === 'glass' ? 'Results, at the speed of now.' : theme === 'editorial' ? "Today’s Results Board" : 'Live results. Clearly delivered.';
+  const [domainName, domainExtension] = domain.split(/\.(.+)/);
+  const [brandPrefix, brandBase = domainName] = domainName.split('-');
+  const brandSuffix = domainExtension ? `${brandBase}.${domainExtension}` : brandBase;
+
+  useEffect(() => {
+    document.title = domain;
+    return () => {
+      document.title = 'Satta Bazaar';
+    };
+  }, [domain]);
+
   return <div className={`hx hx-${theme}`}>
     {theme === 'editorial' ? <header className="hx-editorial-header">
       <div className="hx-editorial-utility"><span>India’s Live Results Journal</span><div className="hx-live"><i /> Results service online</div><span>{data.dateLabel}</span></div>
       <div className="hx-editorial-masthead">
-        <Link to="/" className="hx-editorial-mark" aria-label="555 Results home"><span>555</span><div><strong>RESULTS</strong><small>The Royal Results Chronicle</small></div></Link>
+        <Link to="/" className="hx-editorial-mark" aria-label={`${domain} home`}><span>{brandPrefix}</span><div><strong>{brandSuffix}</strong><small>The Royal Results Chronicle</small></div></Link>
         <div className="hx-editorial-seal" aria-hidden="true"><Trophy size={22}/><span>LIVE</span></div>
       </div>
       <nav className="hx-editorial-nav" aria-label="Primary navigation"><a href="#editorial-latest">Latest Result</a><a href="#editorial-board">Today’s Board</a><a href="#editorial-featured">Featured Games</a><Link to="/archives?theme=editorial">Result Archives</Link></nav>
-    </header> : <header className="hx-header"><Link className="hx-brand" to="/" aria-label="555 Results home"><span>555</span><strong>Results</strong></Link><div className="hx-live"><i /> Live result service</div><Link to={`/archives?theme=${theme}`} className="hx-navlink">Archives</Link></header>}
+    </header> : <header className="hx-header"><Link className="hx-brand" to="/" aria-label={`${domain} home`}><span>{brandPrefix}</span><strong>{brandSuffix}</strong></Link><div className="hx-live"><i /> Live result service</div><Link to={`/archives?theme=${theme}`} className="hx-navlink">Archives</Link></header>}
     {theme === 'editorial' && <div className="hx-announcement">Verified live updates · Historical charts · Play responsibly · 18+ only</div>}
     <main>
       <section className="hx-hero" aria-labelledby={`${theme}-title`}>
-        <div className="hx-intro"><p className="hx-kicker">{theme === 'editorial' ? 'Live Results' : '555 Results · Official Board'}</p><h1 id={`${theme}-title`}>{title}</h1><p>Accurate game results, current schedules and historical charts in one trusted destination.</p><div className="hx-date"><CalendarDays size={18} /> {data.dateLabel}<span>•</span><span className="hx-live"><i /> Live</span></div></div>
+        <div className="hx-intro"><p className="hx-kicker">{theme === 'editorial' ? 'Live Results' : `${domain} · Official Board`}</p><h1 id={`${theme}-title`}>{title}</h1><p>Accurate game results, current schedules and historical charts in one trusted destination.</p><div className="hx-date"><CalendarDays size={18} /> {data.dateLabel}<span>•</span><span className="hx-live"><i /> Live</span></div></div>
         <section className="hx-latest" aria-labelledby={`${theme}-latest`}><div className="hx-latest-label"><Trophy size={19}/><h2 id={`${theme}-latest`}>Latest Result</h2></div>
           <div className="hx-latest-body" aria-live="polite" aria-busy={data.loading}>
             {data.loading ? <div className="hx-skeleton"><i/><i/><i/></div> : latest ? <><div><strong>{latest.name}</strong><span>{latest.time} · {latest.date}</span></div><b>{latest.result}</b></> : <div className="hx-wait"><span className="hx-loader"/>Result will be available shortly.</div>}
@@ -51,7 +66,7 @@ export default function HomeExperience({ theme }: { theme: Theme }) {
         {data.loading ? <div className="hx-grid" aria-label="Fetching the latest results"><div className="hx-game hx-loading"/><div className="hx-game hx-loading"/><div className="hx-game hx-loading"/></div> : data.games.length ? <div className="hx-grid">{data.games.map(game => <ResultCard key={game._id} game={game} next={data.nextGame?._id === game._id} sessionDate={data.sessionDate} onChart={() => setChart(gameName(game))}/>)}</div> : <p className="hx-empty">No scheduled games are available right now.</p>}
       </section>
     </main>
-    <footer className="hx-footer"><div className="hx-brand"><span>555</span><strong>Results</strong></div><p>© 2026 555 Results Live Results. All Rights Reserved.</p><p><ShieldCheck size={15}/> Play Responsibly · 18+ Only · Gambling Can Be Addictive</p><nav aria-label="Legal"><a href="#terms">Terms &amp; Conditions</a><a href="#privacy">Privacy Policy</a><a href="#responsible">Responsible Gaming</a><Link to={`/archives?theme=${theme}`}>Archives</Link></nav></footer>
+    <footer className="hx-footer"><div className="hx-brand"><span>{brandPrefix}</span><strong>{brandSuffix}</strong></div><p>© 2026 {domain} Live Results. All Rights Reserved.</p><p><ShieldCheck size={15}/> Play Responsibly · 18+ Only · Gambling Can Be Addictive</p><nav aria-label="Legal"><a href="#terms">Terms &amp; Conditions</a><a href="#privacy">Privacy Policy</a><a href="#responsible">Responsible Gaming</a><Link to={`/archives?theme=${theme}`}>Archives</Link></nav></footer>
     {chart && <GameChart gameName={chart} onClose={() => setChart(null)}/>} 
   </div>;
 }
