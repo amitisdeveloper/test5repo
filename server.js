@@ -11,7 +11,6 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const deployCommitPath = path.join(__dirname, '.deploy-commit');
 const DEPLOY_COMMIT = fs.existsSync(deployCommitPath)
   ? fs.readFileSync(deployCommitPath, 'utf8').trim()
@@ -32,10 +31,7 @@ mongoose.connect(MONGODB_URI, {
   .catch(err => console.error('❌ MongoDB connection error:', err.message));
 
 // Middleware
-app.use(cors({
-  origin: FRONTEND_URL,
-  credentials: true
-}));
+app.use(cors(require('./backend/corsOptions')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

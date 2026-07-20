@@ -11,7 +11,6 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 // Trust forwarded client IPs only when the immediate proxy is on a private/local network.
 // Override TRUST_PROXY for a different deployment topology.
@@ -30,10 +29,7 @@ mongoose.connect(MONGODB_URI, {
   .catch(err => console.error('MongoDB connection error:', err.message));
 
 // Middleware
-app.use(cors({
-  origin: FRONTEND_URL,
-  credentials: true
-}));
+app.use(cors(require('./corsOptions')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

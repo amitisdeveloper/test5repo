@@ -1,6 +1,12 @@
 # Enable URL rewriting
 RewriteEngine On
 
+# Forward API requests to the Node/Express server running on this host.
+# These rules must run before the SPA fallback below. The [P] flag requires
+# Apache's proxy and proxy_http modules.
+RewriteRule ^api$ http://127.0.0.1:3001/api [P,L]
+RewriteRule ^api/(.*)$ http://127.0.0.1:3001/api/$1 [P,L,NE]
+
 # Handle Angular and Vue.js and React Router (SPA routing)
 # Redirect all requests to index.html unless it's a real file or directory
 RewriteCond %{REQUEST_FILENAME} !-f

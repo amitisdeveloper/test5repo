@@ -508,14 +508,34 @@ function HomePage() {
   );
 }
 
+type HomeVersion = 1 | 2 | 3;
+
+const DOMAIN_HOME_VERSIONS: Record<string, HomeVersion> = {
+  'satta-bazaar.com': 1,
+  'satta-bazaar.online': 2,
+  'satta-bazaar.org': 3,
+};
+
+function DomainHomePage({ localVersion }: { localVersion?: HomeVersion }) {
+  const hostname = window.location.hostname.toLowerCase().replace(/^www\./, '');
+  const version = DOMAIN_HOME_VERSIONS[hostname] || localVersion;
+
+  if (version === 1) return <HomeOne />;
+  if (version === 2) return <HomeTwo />;
+  if (version === 3) return <HomeThree />;
+
+  // Preserve the legacy homepage on unknown hosts and localhost "/".
+  return <HomePage />;
+}
+
 function App() {
   return (
     <Router future={{ v7_startTransition: true }}>
       <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/home-1" element={<HomeOne />} />
-        <Route path="/home-2" element={<HomeTwo />} />
-        <Route path="/home-3" element={<HomeThree />} />
+        <Route path="/" element={<DomainHomePage />} />
+        <Route path="/home-1" element={<DomainHomePage localVersion={1} />} />
+        <Route path="/home-2" element={<DomainHomePage localVersion={2} />} />
+        <Route path="/home-3" element={<DomainHomePage localVersion={3} />} />
         <Route path="/archives" element={<ArchivesPage />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route
