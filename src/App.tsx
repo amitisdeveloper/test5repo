@@ -1,4 +1,4 @@
-import { Trophy, Clock, TrendingUp, RefreshCw } from 'lucide-react';
+import { Trophy, TrendingUp, RefreshCw } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import AdminLogin from './components/AdminLogin';
@@ -8,7 +8,6 @@ import AdminUsersPage from './components/AdminUsersPage';
 import LatestUpdates from './components/LatestUpdates';
 import CreateGame from './components/CreateGame';
 import GameResult from './components/GameResult';
-import GameChart from './components/GameChart';
 import GameResultsPage from './components/GameResultsPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ArchivesPage from './components/ArchivesPage';
@@ -20,7 +19,7 @@ import HomeTwo from './pages/HomeTwo';
 import HomeThree from './pages/HomeThree';
 
 // Session: active from 3:15 PM IST to 9:00 AM IST next day.
-// Dead zone: 9:00 AM IST to 3:14 PM IST — show all games as loading.
+// Dead zone: 9:00 AM IST to 12:00 PM IST — show all games as loading.
 
 const getISTHoursMinutes = (): { hours: number; minutes: number } => {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -35,12 +34,12 @@ const getISTHoursMinutes = (): { hours: number; minutes: number } => {
   };
 };
 
-// Returns true during the dead zone: 9:00 AM to 3:14 PM IST
+// Returns true during the dead zone: 9:00 AM to 12:00 PM IST
 const isInDeadZone = (): boolean => {
   const { hours, minutes } = getISTHoursMinutes();
   const totalMinutes = hours * 60 + minutes;
-  const deadStart = 9 * 60;       // 9:00 AM
-  const deadEnd = 15 * 60 + 14;   // 3:14 PM (session starts at 3:15 PM)
+  const deadStart = 9 * 60;  // 9:00 AM
+  const deadEnd = 12 * 60;   // 12:00 PM
   return totalMinutes >= deadStart && totalMinutes <= deadEnd;
 };
 
@@ -71,8 +70,8 @@ const getResultTimeSortValue = (resultTime?: string | null) => {
     return totalMinutes + (24 * 60);
   }
 
-  // Session games start at 3:15 PM (15:15)
-  if (hours > 15 || (hours === 15 && minutes >= 15)) {
+  // The active announcement window starts after the noon dead zone.
+  if (hours >= 12) {
     return totalMinutes;
   }
 
@@ -127,7 +126,7 @@ const getCurrentISTGameTimeSortValue = () => {
     return totalMinutes + (24 * 60);
   }
 
-  if (hours >= 15) {
+  if (hours >= 12) {
     return totalMinutes;
   }
 
@@ -186,7 +185,6 @@ function HomePage() {
   const [todaysResults, setTodaysResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedGameForChart, setSelectedGameForChart] = useState<string | null>(null);
   const [latestResult, setLatestResult] = useState<any>(null);
   const [todayGameDate, setTodayGameDate] = useState<string>('');
   const [sessionDateYYYYMMDD, setSessionDateYYYYMMDD] = useState<string>(() => getSessionStartDateIST());
@@ -204,6 +202,9 @@ function HomePage() {
   const visibleLatestResult = isLatestResultCurrent(latestResult, new Date(currentTimeMarker))
     ? latestResult
     : null;
+  const scrollToViewChart = () => {
+    document.getElementById('view-chart')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   useEffect(() => {
     fetch('/api/visitors/visit', { method: 'POST', credentials: 'same-origin' })
@@ -374,21 +375,6 @@ function HomePage() {
       </div>
 
       <main className="container mx-auto space-y-8 px-4 py-8 sm:py-10">
-        <PreviousViewChart games={sortedResults} />
-
-        <section>
-          <div className="flex items-center gap-3 mb-6">
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#6f562e] to-[#ffe990]"></div>
-            <h2 className="flex items-center gap-2 text-2xl font-black uppercase text-[#ffe990] sm:text-3xl">
-              <Clock className="h-6 w-6 opacity-0" />
-              Featured Games
-            </h2>
-            <div className="h-px flex-1 bg-gradient-to-l from-transparent via-[#6f562e] to-[#ffe990]"></div>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6 mb-8"></div>
-        </section>
-
         <div className="min-h-[620px] rounded-lg border border-[#7d6035]/60 bg-[linear-gradient(180deg,rgba(5,0,12,0.95)_0%,rgba(8,0,18,0.96)_55%,rgba(31,2,62,0.95)_100%)] p-4 shadow-[0_0_80px_rgba(92,43,151,0.45)] sm:p-6">
           <div className="text-center mb-6">
             <h2 className="mb-2 text-[clamp(2rem,5vw,3rem)] font-black uppercase text-[#ffe990]">Today's Results Board</h2>
@@ -447,7 +433,7 @@ function HomePage() {
                           <span className="text-white font-bold text-xl">{game.result}</span>
                         </div>
                         <button
-                          onClick={() => setSelectedGameForChart(game.nickName)}
+                          onClick={scrollToViewChart}
                           className="w-full rounded-md bg-[linear-gradient(100deg,#8f38da_0%,#db9a00_100%)] py-2 font-black text-white transition-all duration-300 hover:brightness-110"
                         >
                           View Chart
@@ -461,7 +447,7 @@ function HomePage() {
                         <span className="text-white font-bold text-sm">{deadZone ? 'Waiting...' : 'Loading'}</span>
                       </div>
                       <button
-                        onClick={() => setSelectedGameForChart(game.nickName)}
+                        onClick={scrollToViewChart}
                         className="w-full rounded-md bg-[linear-gradient(100deg,#8f38da_0%,#db9a00_100%)] py-2 font-black text-white transition-all duration-300 hover:brightness-110"
                       >
                         View Chart
@@ -479,6 +465,8 @@ function HomePage() {
             )}
           </div>
         </div>
+
+        <PreviousViewChart games={sortedResults} />
       </main>
 
       <footer className="mt-12 border-t border-[#7d6035]/45 bg-[#030007]/90 py-8">
@@ -501,9 +489,6 @@ function HomePage() {
         </div>
       </footer>
 
-      {selectedGameForChart && (
-        <GameChart gameName={selectedGameForChart} onClose={() => setSelectedGameForChart(null)} />
-      )}
     </div>
   );
 }

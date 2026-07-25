@@ -15,14 +15,14 @@ const istTime = () => {
   const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date());
   return { hours: Number(parts.find(p => p.type === 'hour')?.value || 0), minutes: Number(parts.find(p => p.type === 'minute')?.value || 0) };
 };
-const deadNow = () => { const { hours, minutes } = istTime(); const value = hours * 60 + minutes; return value >= 540 && value <= 914; };
+const deadNow = () => { const { hours, minutes } = istTime(); const value = hours * 60 + minutes; return value >= 540 && value <= 720; };
 const timeValue = (value?: string) => {
   const match = value?.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
   if (!match) return Number.MAX_SAFE_INTEGER;
   let hour = Number(match[1]); const minute = Number(match[2]); const meridiem = match[3].toUpperCase();
   if (meridiem === 'AM' && hour === 12) hour = 0; else if (meridiem === 'PM' && hour !== 12) hour += 12;
   const total = hour * 60 + minute;
-  return hour < 9 ? total + 1440 : hour >= 15 ? total : Number.MAX_SAFE_INTEGER;
+  return hour < 9 ? total + 1440 : hour >= 12 ? total : Number.MAX_SAFE_INTEGER;
 };
 const declarationValue = (value?: string) => {
   const match = value?.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i); if (!match) return Number.MAX_SAFE_INTEGER;
@@ -68,7 +68,10 @@ export function useHomepageResults() {
     const aDisawar = (a.nickName || a.name || '').toLowerCase() === 'disawar'; const bDisawar = (b.nickName || b.name || '').toLowerCase() === 'disawar';
     return Number(aDisawar) - Number(bDisawar) || declarationValue(a.resultTime) - declarationValue(b.resultTime) || (a.nickName || a.name || '').localeCompare(b.nickName || b.name || '');
   }), [games]);
-  const current = (() => { const { hours, minutes } = istTime(); const total = hours * 60 + minutes; return hours < 9 ? total + 1440 : hours >= 15 ? total : 0; })();
-  const nextGame = deadZone ? null : sortedGames.find(game => timeValue(game.resultTime) >= current && !game.hasResult) || null;
+  const current = (() => { const { hours, minutes } = istTime(); const total = hours * 60 + minutes; return hours < 9 ? total + 1440 : hours >= 12 ? total : 0; })();
+  const nextGame = deadZone ? null : sortedGames.find(game => {
+    const resultTime = timeValue(game.resultTime);
+    return resultTime !== Number.MAX_SAFE_INTEGER && resultTime >= current && !game.hasResult;
+  }) || null;
   return { games: sortedGames, latestResult: latestIsCurrent(latest, new Date(clock)) ? latest : null, dateLabel, sessionDate, loading, error, deadZone, nextGame };
 }
